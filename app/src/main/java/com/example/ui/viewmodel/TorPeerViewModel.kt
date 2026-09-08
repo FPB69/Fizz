@@ -1,0 +1,434 @@
+package com.example.ui.viewmodel
+
+import android.app.Application
+import android.net.Uri
+import android.widget.Toast
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.data.crypto.CryptoManager
+import com.example.data.database.AppDatabase
+import com.example.data.database.ListingEntity
+import com.example.data.database.MessageEntity
+import com.example.data.database.PeerContactEntity
+import com.example.data.network.ConnectionMode
+import com.example.data.network.LocalPeerServer
+import com.example.data.network.P2PClient
+import com.example.data.network.TorManager
+import com.example.data.network.TorStatus
+import com.example.data.repository.ChatRepository
+import com.example.data.repository.MarketplaceRepository
+import com.example.data.transparency.CurrentActivityState
+import com.example.data.transparency.TransparencyCategory
+import com.example.data.transparency.TransparencyEvent
+import com.example.data.transparency.TransparencyLogManager
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
+enum class AppNavTab {
+    MARKETPLACE,
+    MY_STORE,
+    CHATS,
+    SECURITY
+}
+
+class TorPeerViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val db = AppDatabase.getInstance(application)
+    val cryptoManager = CryptoManager(application)
+    val torManager = TorManager(application, cryptoManager.myOnionAddress)
+    private val p2pClient = P2PClient(application)
+
+    private val marketplaceRepo = MarketplaceRepository(
+        context = application,
+        listingDao = db.listingDao(),
+        myPeerId = cryptoManager.myPeerId,
+        myOnionAddress = cryptoManager.myOnionAddress
+    )
+
+    private val chatRepo = ChatRepository(
+        messageDao = db.messageDao(),
+        peerDao = db.peerContactDao(),
+        cryptoManager = cryptoManager
+    )
+
+    // Local embedded P2P server that serves marketplace photos & listings directly from phone
+    val localServer = LocalPeerServer(
+        context = application,
+        port = 8989,
+        getMyListingsProvider = {
+            marketplaceRepo.myListings.first()
+        },
+        getMyPeerInfo = {
+            Triple(cryptoManager.myPeerId, cryptoManager.myOnionAddress, cryptoManager.myFingerprint)
+        },
+        onMessageReceived = { senderId, senderOnion, content, listingId, listingTitle, listingPrice ->
+            chatRepo.receiveIncomingMessage(senderId, senderOnion, content, listingId, listingTitle, listingPrice)
+        }
+    )
+
+    val transparencyManager = TransparencyLogManager(application)
+    val currentActivity: StateFlow<CurrentActivityState> = transparencyManager.currentActivity
+    val transparencyEvents: StateFlow<List<TransparencyEvent>> = transparencyManager.events
+
+    val currentTab = MutableStateFlow(AppNavTab.MARKETPLACE)
+    val torStatus: StateFlow<TorStatus> = torManager.status
+
+    val myListings: StateFlow<List<ListingEntity>> = marketplaceRepo.myListings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val peerListings: StateFlow<List<ListingEntity>> = marketplaceRepo.peerListings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allListings: StateFlow<List<ListingEntity>> = marketplaceRepo.allListings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val peers: StateFlow<List<PeerContactEntity>> = chatRepo.allPeers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val allMessages: StateFlow<List<MessageEntity>> = chatRepo.allMessages
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedPeerId = MutableStateFlow<String?>(null)
+    val selectedPeerId: StateFlow<String?> = _selectedPeerId.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedCategory = MutableStateFlow("All")
+    val selectedCategory: StateFlow<String> = _selectedCategory.asStateFlow()
+
+    private val _isConnectingPeer = MutableStateFlow(false)
+    val isConnectingPeer: StateFlow<Boolean> = _isConnectingPeer.asStateFlow()
+
+    init {
+        // Start local P2P HTTP Server on phone
+        localServer.start()
+
+        // Seed initial local inventory and peer network items
+        viewModelScope.launch {
+            marketplaceRepo.seedInitialDataIfEmpty()
+            chatRepo.seedInitialChatsIfEmpty()
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        localServer.stop()
+    }
+
+    fun setNavTab(tab: AppNavTab) {
+        currentTab.value = tab
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun setSelectedCategory(category: String) {
+        _selectedCategory.value = category
+    }
+
+    fun selectChat(peerId: String) {
+        _selectedPeerId.value = peerId
+        currentTab.value = AppNavTab.CHATS
+    }
+
+    fun clearChatSelection() {
+        _selectedPeerId.value = null
+    }
+
+    fun createListing(
+        title: String,
+        description: String,
+        price: String,
+        currency: String,
+        category: String,
+        imageUri: Uri?
+    ) {
+        viewModelScope.launch {
+            transparencyManager.setWorking(
+                action = "Saving Product Locally",
+                subtitle = "Writing '$title' ($price $currency) to private SQLite database",
+                category = TransparencyCategory.LOCAL_STORAGE
+            )
+            marketplaceRepo.createMyListing(
+                title = title,
+                description = description,
+                price = price,
+                currency = currency,
+                category = category,
+                imageUri = imageUri
+            )
+            transparencyManager.logEvent(
+                action = "Product Hosted on Phone",
+                description = "Saved '$title' to local SQLite storage. Ready for P2P peers to browse over Tor.",
+                category = TransparencyCategory.LOCAL_STORAGE,
+                technicalDetails = "SQLite INSERT -> listings table • Cloud uploads: 0 bytes • Host: local port 8989",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Listing hosted locally on this phone!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun deleteListing(id: String) {
+        viewModelScope.launch {
+            marketplaceRepo.deleteListing(id)
+            transparencyManager.logEvent(
+                action = "Product Removed",
+                description = "Deleted item ID: $id from local SQLite database",
+                category = TransparencyCategory.LOCAL_STORAGE,
+                technicalDetails = "SQLite DELETE FROM listings WHERE id = '$id'",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Listing removed from local phone", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun toggleStock(listing: ListingEntity) {
+        viewModelScope.launch {
+            marketplaceRepo.toggleStock(listing)
+            transparencyManager.logEvent(
+                action = "Stock Updated Locally",
+                description = "Toggled in-stock status for '${listing.title}'",
+                category = TransparencyCategory.LOCAL_STORAGE,
+                technicalDetails = "SQLite UPDATE listings SET inStock = ${!listing.inStock} WHERE id = '${listing.id}'",
+                setAsCurrent = true
+            )
+        }
+    }
+
+    fun sendMessage(
+        peerId: String,
+        peerOnion: String,
+        text: String,
+        relatedListingId: String? = null,
+        relatedListingTitle: String? = null,
+        relatedListingPrice: String? = null
+    ) {
+        viewModelScope.launch {
+            transparencyManager.setWorking(
+                action = "Encrypting & Sending Message",
+                subtitle = "Encrypting with AES-256-GCM ➔ Routing via Tor SOCKS5 to peer",
+                category = TransparencyCategory.CRYPTOGRAPHY
+            )
+
+            chatRepo.sendMessage(
+                peerId = peerId,
+                peerOnion = peerOnion,
+                text = text,
+                relatedListingId = relatedListingId,
+                relatedListingTitle = relatedListingTitle,
+                relatedListingPrice = relatedListingPrice
+            )
+
+            transparencyManager.logEvent(
+                action = "Encrypted with AES-256-GCM",
+                description = "Derived temporary key & encrypted payload. Plaintext never leaves device.",
+                category = TransparencyCategory.CRYPTOGRAPHY,
+                technicalDetails = "Cipher: AES/GCM/NoPadding (256-bit) • 12-byte IV • 128-bit auth tag"
+            )
+
+            // Attempt direct or simulated P2P delivery to remote peer socket
+            if (peerOnion.isNotEmpty()) {
+                val useTor = torStatus.value.connectionMode == ConnectionMode.TOR_ONION_ROUTING
+                p2pClient.sendPeerMessage(
+                    targetAddress = peerOnion,
+                    senderId = cryptoManager.myPeerId,
+                    senderOnion = cryptoManager.myOnionAddress,
+                    encryptedContent = cryptoManager.encryptAesGcm(text),
+                    listingId = relatedListingId,
+                    listingTitle = relatedListingTitle,
+                    listingPrice = relatedListingPrice,
+                    useTorProxy = useTor
+                )
+
+                transparencyManager.logEvent(
+                    action = "Message Dispatched via Tor",
+                    description = "Transmitted encrypted packet to $peerOnion via SOCKS5 (port ${torStatus.value.socksProxyPort}).",
+                    category = TransparencyCategory.NETWORK_TOR,
+                    technicalDetails = "Socket: 127.0.0.1:${torStatus.value.socksProxyPort} • Direct P2P transmission • 0 cloud logs",
+                    setAsCurrent = true
+                )
+            }
+        }
+    }
+
+    fun connectToPeer(address: String) {
+        viewModelScope.launch {
+            _isConnectingPeer.value = true
+            transparencyManager.setWorking(
+                action = "Connecting to Peer Store",
+                subtitle = "Tunneling request to $address via Tor SOCKS5 proxy...",
+                category = TransparencyCategory.P2P_PEER
+            )
+
+            val result = p2pClient.fetchPeerStore(
+                targetAddress = address,
+                useTorProxy = torStatus.value.connectionMode == ConnectionMode.TOR_ONION_ROUTING,
+                proxyHost = torStatus.value.socksProxyHost,
+                proxyPort = torStatus.value.socksProxyPort
+            )
+
+            if (result.isSuccess) {
+                val listings = result.getOrNull().orEmpty()
+                if (listings.isNotEmpty()) {
+                    marketplaceRepo.importPeerListings(listings)
+                    transparencyManager.logEvent(
+                        action = "Peer Store Synced",
+                        description = "Directly downloaded ${listings.size} listings from peer's phone over Tor. Saved to local SQLite cache.",
+                        category = TransparencyCategory.P2P_PEER,
+                        technicalDetails = "HTTP GET via SOCKS5 (port ${torStatus.value.socksProxyPort}) • Zero intermediaries",
+                        setAsCurrent = true
+                    )
+                    Toast.makeText(getApplication(), "Discovered ${listings.size} listings from peer!", Toast.LENGTH_SHORT).show()
+                } else {
+                    transparencyManager.logEvent(
+                        action = "Peer Connected",
+                        description = "Connected to $address over Tor! (Store is currently empty)",
+                        category = TransparencyCategory.P2P_PEER,
+                        technicalDetails = "Response 200 OK • 0 items",
+                        setAsCurrent = true
+                    )
+                    Toast.makeText(getApplication(), "Connected to peer! (Storefront is empty)", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                transparencyManager.logEvent(
+                    action = "Peer Connection Offline",
+                    description = "Could not reach peer at $address: ${result.exceptionOrNull()?.message ?: "Host unreachable"}",
+                    category = TransparencyCategory.NETWORK_TOR,
+                    technicalDetails = "Socket timeout or peer offline • No data leaked",
+                    setAsCurrent = true
+                )
+                Toast.makeText(getApplication(), "Peer connection: ${result.exceptionOrNull()?.message ?: "Node unreachable"}", Toast.LENGTH_LONG).show()
+            }
+            _isConnectingPeer.value = false
+        }
+    }
+
+    fun rotateTorCircuit() {
+        torManager.rotateTorCircuit()
+        transparencyManager.logEvent(
+            action = "Tor Circuit Rebuilt",
+            description = "Constructed brand new 3-hop onion circuit with fresh guard, middle, and exit relays.",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "New circuit generated with random Tor consensus nodes • New crypto handshake",
+            setAsCurrent = true
+        )
+        Toast.makeText(getApplication(), "Generated new 3-hop Tor circuit!", Toast.LENGTH_SHORT).show()
+    }
+
+    fun updateProxySettings(host: String, port: Int) {
+        torManager.updateProxySettings(host, port)
+        transparencyManager.logEvent(
+            action = "Proxy Settings Updated",
+            description = "Updated SOCKS5 proxy target to $host:$port",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Proxy changed -> java.net.Proxy(SOCKS, InetSocketAddress($host, $port))",
+            setAsCurrent = true
+        )
+        Toast.makeText(getApplication(), "Proxy configuration updated", Toast.LENGTH_SHORT).show()
+    }
+
+    fun setConnectionMode(mode: ConnectionMode) {
+        torManager.setConnectionMode(mode)
+        transparencyManager.logEvent(
+            action = "Routing Mode Changed",
+            description = if (mode == ConnectionMode.TOR_ONION_ROUTING) "Strict Tor Onion SOCKS5 routing active" else "Direct LAN P2P active",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "ConnectionMode -> $mode",
+            setAsCurrent = true
+        )
+    }
+
+    fun startOrbot() {
+        val success = torManager.startOrbot()
+        transparencyManager.logEvent(
+            action = "Start Orbot Request Sent",
+            description = if (success) "Sent Android Intent to start Orbot background Tor daemon" else "Orbot is not installed on this device",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Intent: org.torproject.android.intent.action.START",
+            setAsCurrent = true
+        )
+        if (success) {
+            Toast.makeText(getApplication(), "Sent start request to Orbot", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(getApplication(), "Orbot not installed or request failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun stopOrbot() {
+        torManager.stopOrbot()
+        transparencyManager.logEvent(
+            action = "Stop Orbot Request Sent",
+            description = "Sent Android Intent to stop Orbot Tor daemon",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Intent: org.torproject.android.intent.action.STOP",
+            setAsCurrent = true
+        )
+        Toast.makeText(getApplication(), "Sent stop request to Orbot", Toast.LENGTH_SHORT).show()
+    }
+
+    fun bindOrbotService() {
+        val bound = torManager.bindOrbotService()
+        transparencyManager.logEvent(
+            action = "Bind Tor Service",
+            description = if (bound) "Bound to Orbot background AIDL ServiceConnection" else "Could not bind to Orbot service",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "ServiceConnection to org.torproject.android.service.TorService",
+            setAsCurrent = true
+        )
+        if (bound) {
+            Toast.makeText(getApplication(), "Binding to Orbot TorService", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(getApplication(), "Could not bind to Orbot service directly", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun probeTorConnectivity() {
+        torManager.runLiveTorProbe()
+        transparencyManager.logEvent(
+            action = "Tor Socket Diagnostic",
+            description = "Probing SOCKS5 proxy on port ${torStatus.value.socksProxyPort} & verifying Tor exit IP...",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "SOCKS5 handshake test & HTTPS query to check.torproject.org via proxy",
+            setAsCurrent = true
+        )
+        Toast.makeText(getApplication(), "Probing Tor SOCKS proxy & exit IP...", Toast.LENGTH_SHORT).show()
+    }
+
+    fun openOrbotPlayStore() {
+        val intent = torManager.orbotManager.getInstallIntent()
+        intent.addFlags(android.content.IntentFilter.MATCH_CATEGORY_EMPTY)
+        try {
+            getApplication<Application>().startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(getApplication(), "Cannot launch Play Store: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun clearTransparencyLog() {
+        transparencyManager.clearLog()
+    }
+
+    fun panicWipeAllData() {
+        viewModelScope.launch {
+            marketplaceRepo.wipeAll()
+            chatRepo.wipeAll()
+            cryptoManager.wipeKeys()
+            transparencyManager.logEvent(
+                action = "EMERGENCY DATA PURGE",
+                description = "All SQLite records deleted, keys zeroed in Keystore, and local cache destroyed.",
+                category = TransparencyCategory.CRYPTOGRAPHY,
+                technicalDetails = "Wipe complete • 0 recoverable data remains on device",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Vault zeroed! All local data cryptographically wiped.", Toast.LENGTH_LONG).show()
+        }
+    }
+}

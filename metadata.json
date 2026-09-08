@@ -1,0 +1,6 @@
+{
+  "name": "Fizz",
+  "description": "Fizz - Private, encrypted P2P messaging and decentralized marketplace routed through Tor with zero cloud storage and bubble water theme.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

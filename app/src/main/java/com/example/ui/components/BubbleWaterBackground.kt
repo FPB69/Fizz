@@ -1,115 +1,73 @@
 package com.example.ui.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkSurface
-import kotlin.math.sin
-import kotlin.random.Random
+import com.example.ui.theme.LocalMedicalTheme
 
-private data class BubbleParticle(
-    val initialXRatio: Float,
-    val speed: Float,
-    val radius: Float,
-    val alpha: Float,
-    val wobbleFreq: Float,
-    val phase: Float
-)
-
+/**
+ * Super Minimalist Medical Canvas Background
+ * Supports both pristine Light Theme and sleek Obsidian Dark Theme,
+ * modeled after clean healthcare / medical interfaces.
+ */
 @Composable
 fun BubbleWaterBackground(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
-    val bubbles = remember {
-        val random = Random(42)
-        List(28) {
-            BubbleParticle(
-                initialXRatio = random.nextFloat(),
-                speed = 0.08f + random.nextFloat() * 0.14f,
-                radius = 4f + random.nextFloat() * 16f,
-                alpha = 0.15f + random.nextFloat() * 0.35f,
-                wobbleFreq = 2f + random.nextFloat() * 4f,
-                phase = random.nextFloat() * 6.28f
-            )
-        }
-    }
+    val theme = LocalMedicalTheme.current
 
-    val transition = rememberInfiniteTransition(label = "bubbles_anim")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 9000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "bubbles_progress"
-    )
+    val backgroundBrush = if (theme.isDark) {
+        Brush.verticalGradient(
+            colors = listOf(
+                theme.background,
+                Color(0xFF0F172A),
+                theme.background
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            colors = listOf(
+                theme.background,
+                Color(0xFFFFFFFF),
+                Color(0xFFF1F5F9)
+            )
+        )
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        DarkBackground,
-                        DarkSurface,
-                        Color(0xFF031930)
-                    )
-                )
-            )
+            .background(backgroundBrush)
     ) {
+        // Minimal subtle ambient light glow
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val canvasWidth = size.width
-            val canvasHeight = size.height
+            val width = size.width
+            val height = size.height
 
-            for (bubble in bubbles) {
-                // Rising motion: y moves upwards from 1 to 0, looping
-                val rawY = (bubble.phase + progress * bubble.speed * 8f) % 1f
-                val y = canvasHeight * (1f - rawY)
-
-                // Sine wobble for realistic effervescent drift
-                val wobble = sin(rawY * bubble.wobbleFreq * 6.28f + bubble.phase) * 18f
-                val x = (bubble.initialXRatio * canvasWidth + wobble).coerceIn(0f, canvasWidth)
-
-                // Translucent bubble body
-                drawCircle(
-                    color = Color(0xFF00E5FF).copy(alpha = bubble.alpha * 0.4f),
-                    radius = bubble.radius,
-                    center = Offset(x, y)
-                )
-
-                // Crisp bubble rim / outline
-                drawCircle(
-                    color = Color(0xFFE0F7FA).copy(alpha = bubble.alpha * 0.7f),
-                    radius = bubble.radius,
-                    center = Offset(x, y),
-                    style = Stroke(width = 1.2f)
-                )
-
-                // Tiny sparkling specular highlight at top-left
-                drawCircle(
-                    color = Color.White.copy(alpha = bubble.alpha * 0.9f),
-                    radius = bubble.radius * 0.25f,
-                    center = Offset(x - bubble.radius * 0.35f, y - bubble.radius * 0.35f)
-                )
+            val glowColor = if (theme.isDark) {
+                theme.accentPrimary.copy(alpha = 0.035f)
+            } else {
+                theme.accentPrimary.copy(alpha = 0.025f)
             }
+
+            drawCircle(
+                color = glowColor,
+                radius = width * 0.45f,
+                center = Offset(width * 0.85f, height * 0.1f)
+            )
+
+            drawCircle(
+                color = theme.alertGreen.copy(alpha = if (theme.isDark) 0.025f else 0.015f),
+                radius = width * 0.5f,
+                center = Offset(width * 0.1f, height * 0.75f)
+            )
         }
 
         content()

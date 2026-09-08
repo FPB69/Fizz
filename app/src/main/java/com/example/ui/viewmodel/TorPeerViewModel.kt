@@ -10,10 +10,12 @@ import com.example.data.database.AppDatabase
 import com.example.data.database.ListingEntity
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
+import com.example.data.network.AnonymousNetworkLayer
 import com.example.data.network.ConnectionMode
 import com.example.data.network.LocalPeerServer
 import com.example.data.network.P2PClient
 import com.example.data.network.TorManager
+import com.example.data.network.TorNetworkVitals
 import com.example.data.network.TorStatus
 import com.example.data.repository.ChatRepository
 import com.example.data.repository.MarketplaceRepository
@@ -42,7 +44,26 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     private val db = AppDatabase.getInstance(application)
     val cryptoManager = CryptoManager(application)
     val torManager = TorManager(application, cryptoManager.myOnionAddress)
+    val transparencyManager = TransparencyLogManager(application)
+    val anonymousNetworkLayer = AnonymousNetworkLayer(
+        context = application,
+        orbotManager = torManager.orbotManager,
+        nativeTorClient = torManager.nativeTorClient,
+        transparencyLogManager = transparencyManager
+    )
+    val networkVitals: StateFlow<TorNetworkVitals> = anonymousNetworkLayer.vitals
     private val p2pClient = P2PClient(application)
+
+    private val _isDarkTheme = MutableStateFlow(true)
+    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
+
+    fun toggleTheme() {
+        _isDarkTheme.value = !_isDarkTheme.value
+    }
+
+    fun setTheme(dark: Boolean) {
+        _isDarkTheme.value = dark
+    }
 
     private val marketplaceRepo = MarketplaceRepository(
         context = application,
@@ -72,7 +93,6 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         }
     )
 
-    val transparencyManager = TransparencyLogManager(application)
     val currentActivity: StateFlow<CurrentActivityState> = transparencyManager.currentActivity
     val transparencyEvents: StateFlow<List<TransparencyEvent>> = transparencyManager.events
 
@@ -234,27 +254,21 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
                 technicalDetails = "Cipher: AES/GCM/NoPadding (256-bit) • 12-byte IV • 128-bit auth tag"
             )
 
-            // Attempt direct or simulated P2P delivery to remote peer socket
+            // Route directly through Anonymous Tor Network Layer
             if (peerOnion.isNotEmpty()) {
-                val useTor = torStatus.value.connectionMode == ConnectionMode.TOR_ONION_ROUTING
-                p2pClient.sendPeerMessage(
+                val sendResult = anonymousNetworkLayer.sendAnonymousMessage(
                     targetAddress = peerOnion,
                     senderId = cryptoManager.myPeerId,
                     senderOnion = cryptoManager.myOnionAddress,
                     encryptedContent = cryptoManager.encryptAesGcm(text),
                     listingId = relatedListingId,
                     listingTitle = relatedListingTitle,
-                    listingPrice = relatedListingPrice,
-                    useTorProxy = useTor
+                    listingPrice = relatedListingPrice
                 )
 
-                transparencyManager.logEvent(
-                    action = "Message Dispatched via Tor",
-                    description = "Transmitted encrypted packet to $peerOnion via SOCKS5 (port ${torStatus.value.socksProxyPort}).",
-                    category = TransparencyCategory.NETWORK_TOR,
-                    technicalDetails = "Socket: 127.0.0.1:${torStatus.value.socksProxyPort} • Direct P2P transmission • 0 cloud logs",
-                    setAsCurrent = true
-                )
+                if (sendResult.isSuccess) {
+                    Toast.makeText(getApplication(), "Delivered via Tor SOCKS5", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -262,39 +276,14 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     fun connectToPeer(address: String) {
         viewModelScope.launch {
             _isConnectingPeer.value = true
-            transparencyManager.setWorking(
-                action = "Connecting to Peer Store",
-                subtitle = "Tunneling request to $address via Tor SOCKS5 proxy...",
-                category = TransparencyCategory.P2P_PEER
-            )
-
-            val result = p2pClient.fetchPeerStore(
-                targetAddress = address,
-                useTorProxy = torStatus.value.connectionMode == ConnectionMode.TOR_ONION_ROUTING,
-                proxyHost = torStatus.value.socksProxyHost,
-                proxyPort = torStatus.value.socksProxyPort
-            )
+            val result = anonymousNetworkLayer.fetchAnonymousStorefront(targetAddress = address)
 
             if (result.isSuccess) {
                 val listings = result.getOrNull().orEmpty()
                 if (listings.isNotEmpty()) {
                     marketplaceRepo.importPeerListings(listings)
-                    transparencyManager.logEvent(
-                        action = "Peer Store Synced",
-                        description = "Directly downloaded ${listings.size} listings from peer's phone over Tor. Saved to local SQLite cache.",
-                        category = TransparencyCategory.P2P_PEER,
-                        technicalDetails = "HTTP GET via SOCKS5 (port ${torStatus.value.socksProxyPort}) • Zero intermediaries",
-                        setAsCurrent = true
-                    )
-                    Toast.makeText(getApplication(), "Discovered ${listings.size} listings from peer!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(getApplication(), "Discovered ${listings.size} listings over Tor!", Toast.LENGTH_SHORT).show()
                 } else {
-                    transparencyManager.logEvent(
-                        action = "Peer Connected",
-                        description = "Connected to $address over Tor! (Store is currently empty)",
-                        category = TransparencyCategory.P2P_PEER,
-                        technicalDetails = "Response 200 OK • 0 items",
-                        setAsCurrent = true
-                    )
                     Toast.makeText(getApplication(), "Connected to peer! (Storefront is empty)", Toast.LENGTH_SHORT).show()
                 }
             } else {
@@ -392,11 +381,14 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
 
     fun probeTorConnectivity() {
         torManager.runLiveTorProbe()
+        viewModelScope.launch {
+            anonymousNetworkLayer.probeNetworkVitals()
+        }
         transparencyManager.logEvent(
-            action = "Tor Socket Diagnostic",
-            description = "Probing SOCKS5 proxy on port ${torStatus.value.socksProxyPort} & verifying Tor exit IP...",
+            action = "Tor Network Vitals Probed",
+            description = "Probing SOCKS5 proxy on port ${torStatus.value.socksProxyPort} & measuring network vitals...",
             category = TransparencyCategory.NETWORK_TOR,
-            technicalDetails = "SOCKS5 handshake test & HTTPS query to check.torproject.org via proxy",
+            technicalDetails = "SOCKS5 handshake test & HTTPS query to check.torproject.org via Tor proxy",
             setAsCurrent = true
         )
         Toast.makeText(getApplication(), "Probing Tor SOCKS proxy & exit IP...", Toast.LENGTH_SHORT).show()

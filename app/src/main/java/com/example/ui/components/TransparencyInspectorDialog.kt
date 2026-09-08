@@ -1,7 +1,6 @@
 package com.example.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -30,16 +29,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -71,19 +67,7 @@ import com.example.data.network.TorStatus
 import com.example.data.transparency.CurrentActivityState
 import com.example.data.transparency.TransparencyCategory
 import com.example.data.transparency.TransparencyEvent
-import com.example.ui.theme.BubbleAquaDark
-import com.example.ui.theme.BubbleAquaLight
-import com.example.ui.theme.BubbleAquaPrimary
-import com.example.ui.theme.BubbleCarbonationGreen
-import com.example.ui.theme.BubbleCyan
-import com.example.ui.theme.BubbleFoamWhite
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceElevated
-import com.example.ui.theme.DarkSurfaceHigh
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.LocalMedicalTheme
 
 @Composable
 fun TransparencyInspectorDialog(
@@ -96,6 +80,7 @@ fun TransparencyInspectorDialog(
     onClearLog: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val theme = LocalMedicalTheme.current
     var selectedCategoryFilter by remember { mutableStateOf<TransparencyCategory?>(null) }
     var expandedEventId by remember { mutableStateOf<String?>(null) }
 
@@ -113,9 +98,9 @@ fun TransparencyInspectorDialog(
                 .fillMaxWidth(0.95f)
                 .fillMaxHeight(0.90f)
                 .clip(RoundedCornerShape(24.dp))
-                .border(1.dp, BubbleAquaPrimary.copy(alpha = 0.35f), RoundedCornerShape(24.dp))
+                .border(1.dp, theme.border, RoundedCornerShape(24.dp))
                 .testTag("transparency_inspector_dialog"),
-            color = DarkBackground
+            color = theme.surface
         ) {
             Column(
                 modifier = Modifier
@@ -131,26 +116,32 @@ fun TransparencyInspectorDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(BubbleAquaDark)
-                                .border(1.dp, BubbleAquaPrimary, CircleShape),
+                                .background(theme.accentPrimary.copy(alpha = 0.12f))
+                                .border(1.dp, theme.accentPrimary.copy(alpha = 0.3f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("🫧", fontSize = 18.sp)
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = theme.accentPrimary,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Transparency Inspector",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BubbleFoamWhite
+                                text = "TRANSPARENCY INSPECTOR",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 0.5.sp,
+                                color = theme.textPrimary
                             )
                             Text(
-                                text = "Live audit of what Fizz is doing",
-                                fontSize = 12.sp,
-                                color = BubbleAquaLight
+                                text = "Live audit of device activity & Tor proxying",
+                                fontSize = 11.sp,
+                                color = theme.accentPrimary
                             )
                         }
                     }
@@ -159,7 +150,7 @@ fun TransparencyInspectorDialog(
                         onClick = onDismiss,
                         modifier = Modifier.testTag("close_transparency_dialog")
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = TextSecondary)
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = theme.textSecondary)
                     }
                 }
 
@@ -167,7 +158,7 @@ fun TransparencyInspectorDialog(
 
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // 1. Current Live Status Card
                     item {
@@ -192,10 +183,10 @@ fun TransparencyInspectorDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Live Activity Audit Log (${filteredEvents.size})",
-                                    fontSize = 14.sp,
+                                    text = "Activity Audit Log (${filteredEvents.size})",
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = BubbleFoamWhite
+                                    color = theme.textPrimary
                                 )
 
                                 if (events.isNotEmpty()) {
@@ -209,31 +200,31 @@ fun TransparencyInspectorDialog(
                                         Icon(
                                             Icons.Default.DeleteSweep,
                                             contentDescription = "Clear Log",
-                                            tint = TextMuted,
-                                            modifier = Modifier.size(14.dp)
+                                            tint = theme.textMuted,
+                                            modifier = Modifier.size(13.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Clear", fontSize = 11.sp, color = TextMuted)
+                                        Text("Clear", fontSize = 10.5.sp, color = theme.textMuted)
                                     }
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             LazyRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                contentPadding = PaddingValues(bottom = 4.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                contentPadding = PaddingValues(bottom = 2.dp)
                             ) {
                                 item {
                                     FilterChip(
                                         selected = selectedCategoryFilter == null,
                                         onClick = { selectedCategoryFilter = null },
-                                        label = { Text("All Actions", fontSize = 11.sp) },
+                                        label = { Text("All Actions", fontSize = 10.5.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = BubbleAquaPrimary,
-                                            selectedLabelColor = DarkBackground,
-                                            containerColor = DarkSurfaceElevated,
-                                            labelColor = TextSecondary
+                                            selectedContainerColor = theme.accentPrimary,
+                                            selectedLabelColor = Color.White,
+                                            containerColor = theme.surfaceElevated,
+                                            labelColor = theme.textSecondary
                                         )
                                     )
                                 }
@@ -244,12 +235,12 @@ fun TransparencyInspectorDialog(
                                         onClick = {
                                             selectedCategoryFilter = if (selectedCategoryFilter == cat) null else cat
                                         },
-                                        label = { Text("${cat.emoji} ${cat.label}", fontSize = 11.sp) },
+                                        label = { Text("${cat.emoji} ${cat.label}", fontSize = 10.5.sp) },
                                         colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = BubbleAquaPrimary,
-                                            selectedLabelColor = DarkBackground,
-                                            containerColor = DarkSurfaceElevated,
-                                            labelColor = TextSecondary
+                                            selectedContainerColor = theme.accentPrimary,
+                                            selectedLabelColor = Color.White,
+                                            containerColor = theme.surfaceElevated,
+                                            labelColor = theme.textSecondary
                                         )
                                     )
                                 }
@@ -263,13 +254,13 @@ fun TransparencyInspectorDialog(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 24.dp),
+                                    .padding(vertical = 20.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "No events logged for this category",
-                                    fontSize = 12.sp,
-                                    color = TextMuted
+                                    fontSize = 11.5.sp,
+                                    color = theme.textMuted
                                 )
                             }
                         }
@@ -296,22 +287,22 @@ fun TransparencyInspectorDialog(
                 ) {
                     Button(
                         onClick = onProbeTor,
-                        colors = ButtonDefaults.buttonColors(containerColor = BubbleAquaDark),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.surfaceElevated),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp), tint = BubbleCyan)
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(15.dp), tint = theme.accentPrimary)
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Test Tor Socket", fontSize = 12.sp, color = BubbleCyan)
+                        Text("Test Tor Socket", fontSize = 11.5.sp, color = theme.accentPrimary)
                     }
 
                     Button(
                         onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = BubbleAquaPrimary, contentColor = DarkBackground),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.accentPrimary, contentColor = Color.White),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Got it", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Dismiss", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -324,6 +315,7 @@ private fun CurrentStatusCard(
     activityState: CurrentActivityState,
     torStatus: TorStatus
 ) {
+    val theme = LocalMedicalTheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseScale by infiniteTransition.animateFloat(
         initialValue = 1f,
@@ -337,10 +329,10 @@ private fun CurrentStatusCard(
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, BubbleAquaPrimary.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(16.dp))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -351,17 +343,17 @@ private fun CurrentStatusCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(10.dp)
+                            .size(9.dp)
                             .scale(pulseScale)
                             .clip(CircleShape)
-                            .background(if (activityState.isWorking) BubbleCyan else BubbleCarbonationGreen)
+                            .background(if (activityState.isWorking) theme.accentSecondary else theme.alertGreen)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "RIGHT NOW",
-                        fontSize = 11.sp,
+                        text = "CURRENT VITALS",
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = BubbleAquaLight,
+                        color = theme.accentPrimary,
                         letterSpacing = 0.8.sp
                     )
                 }
@@ -369,14 +361,14 @@ private fun CurrentStatusCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(BubbleAquaDark)
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                        .background(theme.accentPrimary.copy(alpha = 0.12f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = "${activityState.category.emoji} ${activityState.category.label}",
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BubbleCyan
+                        color = theme.accentPrimary
                     )
                 }
             }
@@ -385,18 +377,18 @@ private fun CurrentStatusCard(
 
             Text(
                 text = activityState.title,
-                fontSize = 15.sp,
+                fontSize = 13.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = BubbleFoamWhite
+                color = theme.textPrimary
             )
 
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
                 text = activityState.subtitle,
-                fontSize = 12.sp,
-                color = TextSecondary,
-                lineHeight = 16.sp
+                fontSize = 11.5.sp,
+                color = theme.textSecondary,
+                lineHeight = 15.sp
             )
         }
     }
@@ -408,18 +400,20 @@ private fun DataStorageRealityCard(
     peerListingsCount: Int,
     torStatus: TorStatus
 ) {
+    val theme = LocalMedicalTheme.current
+
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurface),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(16.dp))
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Security, contentDescription = null, tint = BubbleCarbonationGreen, modifier = Modifier.size(16.dp))
+                Icon(Icons.Default.Security, contentDescription = null, tint = theme.alertGreen, modifier = Modifier.size(15.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Zero-Cloud Architecture Breakdown", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BubbleFoamWhite)
+                Text("Zero-Cloud Architecture Audit", fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = theme.textPrimary)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -433,19 +427,20 @@ private fun DataStorageRealityCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceElevated)
-                        .padding(10.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(theme.surface)
+                        .border(1.dp, theme.border, RoundedCornerShape(10.dp))
+                        .padding(8.dp)
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Storage, contentDescription = null, tint = BubbleAquaPrimary, modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.Storage, contentDescription = null, tint = theme.accentPrimary, modifier = Modifier.size(11.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Your Phone", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BubbleAquaPrimary)
+                            Text("Your Device", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = theme.accentPrimary)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("100% Data", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = BubbleFoamWhite)
-                        Text("$myListingsCount listings • SQLite DB", fontSize = 9.sp, color = TextMuted)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text("100% Local", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = theme.textPrimary)
+                        Text("$myListingsCount listings • SQLite", fontSize = 8.5.sp, color = theme.textMuted)
                     }
                 }
 
@@ -453,19 +448,20 @@ private fun DataStorageRealityCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceElevated)
-                        .padding(10.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(theme.surface)
+                        .border(1.dp, theme.border, RoundedCornerShape(10.dp))
+                        .padding(8.dp)
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CloudOff, contentDescription = null, tint = BubbleCarbonationGreen, modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.CloudOff, contentDescription = null, tint = theme.alertGreen, modifier = Modifier.size(11.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Cloud Servers", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BubbleCarbonationGreen)
+                            Text("Cloud Servers", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = theme.alertGreen)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("0 Bytes", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = BubbleCarbonationGreen)
-                        Text("Zero logs • No accounts", fontSize = 9.sp, color = TextMuted)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text("0 Bytes", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = theme.alertGreen)
+                        Text("Zero external DB", fontSize = 8.5.sp, color = theme.textMuted)
                     }
                 }
 
@@ -473,19 +469,20 @@ private fun DataStorageRealityCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceElevated)
-                        .padding(10.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(theme.surface)
+                        .border(1.dp, theme.border, RoundedCornerShape(10.dp))
+                        .padding(8.dp)
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Lock, contentDescription = null, tint = BubbleCyan, modifier = Modifier.size(12.dp))
+                            Icon(Icons.Default.Lock, contentDescription = null, tint = theme.accentSecondary, modifier = Modifier.size(11.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Tor Tunnel", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = BubbleCyan)
+                            Text("Tor Tunnel", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = theme.accentSecondary)
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Encrypted", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = BubbleCyan)
-                        Text("Port ${torStatus.socksProxyPort} • 3 Hops", fontSize = 9.sp, color = TextMuted)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text("Encrypted", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = theme.accentSecondary)
+                        Text("Port ${torStatus.socksProxyPort}", fontSize = 8.5.sp, color = theme.textMuted)
                     }
                 }
             }
@@ -499,79 +496,82 @@ private fun TransparencyEventCard(
     isExpanded: Boolean,
     onToggle: () -> Unit
 ) {
+    val theme = LocalMedicalTheme.current
+
     Card(
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated.copy(alpha = 0.9f)),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(12.dp))
             .clickable { onToggle() }
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(event.category.emoji, fontSize = 14.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(event.category.emoji, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = event.action,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BubbleFoamWhite
+                        color = theme.textPrimary
                     )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = event.timeFormatted,
-                        fontSize = 10.sp,
-                        color = TextMuted,
+                        fontSize = 9.5.sp,
+                        color = theme.textMuted,
                         fontFamily = FontFamily.Monospace
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = if (isExpanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
                         contentDescription = "Expand details",
-                        tint = TextMuted,
-                        modifier = Modifier.size(16.dp)
+                        tint = theme.textMuted,
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
 
             Text(
                 text = event.description,
                 fontSize = 11.sp,
-                color = TextSecondary,
-                lineHeight = 15.sp
+                color = theme.textSecondary,
+                lineHeight = 14.sp
             )
 
             AnimatedVisibility(visible = isExpanded) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .padding(top = 6.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(DarkBackground)
-                        .padding(10.dp)
+                        .background(theme.surface)
+                        .border(1.dp, theme.border, RoundedCornerShape(8.dp))
+                        .padding(8.dp)
                 ) {
                     Text(
                         text = "Technical Details:",
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = BubbleAquaPrimary
+                        color = theme.accentPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = event.technicalDetails,
-                        fontSize = 10.sp,
+                        fontSize = 9.5.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = BubbleFoamWhite,
-                        lineHeight = 14.sp
+                        color = theme.textPrimary,
+                        lineHeight = 13.sp
                     )
                 }
             }

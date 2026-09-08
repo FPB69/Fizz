@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,33 +33,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.transparency.CurrentActivityState
-import com.example.ui.theme.BubbleAquaDark
-import com.example.ui.theme.BubbleAquaLight
-import com.example.ui.theme.BubbleAquaPrimary
-import com.example.ui.theme.BubbleCarbonationGreen
-import com.example.ui.theme.BubbleCyan
-import com.example.ui.theme.BubbleFoamWhite
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurfaceElevated
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.LocalMedicalTheme
 
+/**
+ * Super Minimalist Live Transparency Bar
+ * Medical-grade status monitor showing real-time background operations
+ * and cryptographic state.
+ */
 @Composable
 fun LiveTransparencyBar(
     activityState: CurrentActivityState,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "bubble_pulse")
+    val theme = LocalMedicalTheme.current
+
+    val infiniteTransition = rememberInfiniteTransition(label = "medical_pulse")
     val pulseScale by infiniteTransition.animateFloat(
-        initialValue = 0.9f,
+        initialValue = 0.85f,
         targetValue = if (activityState.isWorking) 1.25f else 1.05f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = if (activityState.isWorking) 600 else 1200),
@@ -72,11 +68,11 @@ fun LiveTransparencyBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(DarkSurfaceElevated.copy(alpha = 0.85f))
-            .border(1.dp, BubbleAquaPrimary.copy(alpha = 0.25f), RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(theme.surface.copy(alpha = if (theme.isDark) 0.85f else 0.95f))
+            .border(1.dp, theme.border, RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 14.dp, vertical = 9.dp)
             .testTag("live_transparency_bar")
     ) {
         Row(
@@ -88,24 +84,19 @@ fun LiveTransparencyBar(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Effervescent carbonation status indicator
+                // Heartbeat / Vitals indicator
                 Box(
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(9.dp)
                         .scale(pulseScale)
                         .clip(CircleShape)
-                        .background(if (activityState.isWorking) BubbleCyan else BubbleCarbonationGreen)
+                        .background(if (activityState.isWorking) theme.accentPrimary else theme.alertGreen)
                 )
 
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = activityState.category.emoji,
-                            fontSize = 11.sp
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
                         AnimatedContent(
                             targetState = activityState.title,
                             transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -113,9 +104,9 @@ fun LiveTransparencyBar(
                         ) { title ->
                             Text(
                                 text = title,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BubbleFoamWhite,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = theme.textPrimary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -130,7 +121,7 @@ fun LiveTransparencyBar(
                         Text(
                             text = subtitle,
                             fontSize = 10.sp,
-                            color = TextSecondary,
+                            color = theme.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -144,23 +135,23 @@ fun LiveTransparencyBar(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(BubbleAquaDark.copy(alpha = 0.8f))
-                    .border(1.dp, BubbleAquaPrimary.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .background(theme.surfaceElevated)
+                    .border(1.dp, theme.border, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 9.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.Visibility,
                         contentDescription = "Transparency Inspector",
-                        tint = BubbleCyan,
-                        modifier = Modifier.size(12.dp)
+                        tint = theme.accentPrimary,
+                        modifier = Modifier.size(11.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Inspect",
                         fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BubbleCyan
+                        fontWeight = FontWeight.Medium,
+                        color = theme.accentPrimary
                     )
                 }
             }

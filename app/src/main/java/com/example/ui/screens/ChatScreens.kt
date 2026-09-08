@@ -42,7 +42,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -69,24 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
-import com.example.ui.theme.DarkBackground
-import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceElevated
-import com.example.ui.theme.DarkSurfaceHigh
-import com.example.ui.theme.TextMuted
-import com.example.ui.theme.TextSecondary
-import com.example.ui.theme.TorCyan
-import com.example.ui.theme.BubbleAquaDark
-import com.example.ui.theme.BubbleAquaLight
-import com.example.ui.theme.BubbleAquaPrimary
-import com.example.ui.theme.BubbleCarbonationGreen
-import com.example.ui.theme.BubbleCyan
-import com.example.ui.theme.BubbleFoamWhite
-import com.example.ui.theme.TorOnionGreen
-import com.example.ui.theme.TorPurple
-import com.example.ui.theme.TorPurpleDark
-import com.example.ui.theme.TorPurpleLight
+import com.example.ui.theme.LocalMedicalTheme
 import com.example.ui.viewmodel.TorPeerViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -98,6 +80,7 @@ fun ChatListScreen(
     viewModel: TorPeerViewModel,
     modifier: Modifier = Modifier
 ) {
+    val theme = LocalMedicalTheme.current
     val peers by viewModel.peers.collectAsStateWithLifecycle()
     val allMessages by viewModel.allMessages.collectAsStateWithLifecycle()
     var showNewChatDialog by remember { mutableStateOf(false) }
@@ -109,8 +92,8 @@ fun ChatListScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showNewChatDialog = true },
-                containerColor = BubbleAquaPrimary,
-                contentColor = DarkBackground,
+                containerColor = theme.accentPrimary,
+                contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.testTag("new_chat_fab")
             ) {
@@ -120,7 +103,7 @@ fun ChatListScreen(
                 ) {
                     Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = "New Chat")
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("New P2P Chat", fontWeight = FontWeight.Bold)
+                    Text("New P2P Chat", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
@@ -140,42 +123,42 @@ fun ChatListScreen(
                 Column {
                     Text(
                         text = "Encrypted Chats",
-                        fontSize = 24.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = theme.textPrimary
                     )
                     Text(
                         text = "End-to-End Encrypted via Tor Onion",
-                        fontSize = 12.sp,
-                        color = TextSecondary
+                        fontSize = 11.5.sp,
+                        color = theme.textSecondary
                     )
                 }
 
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(TorOnionGreen.copy(alpha = 0.12f))
-                        .border(1.dp, TorOnionGreen.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .background(theme.alertGreen.copy(alpha = 0.12f))
+                        .border(1.dp, theme.alertGreen.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = TorOnionGreen,
-                        modifier = Modifier.size(13.dp)
+                        tint = theme.alertGreen,
+                        modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "AES-256-GCM",
-                        fontSize = 11.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TorOnionGreen
+                        color = theme.alertGreen
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             if (peers.isEmpty()) {
                 Box(
@@ -188,20 +171,20 @@ fun ChatListScreen(
                         Icon(
                             imageVector = Icons.Default.Security,
                             contentDescription = null,
-                            tint = TextMuted,
-                            modifier = Modifier.size(54.dp)
+                            tint = theme.textMuted,
+                            modifier = Modifier.size(48.dp)
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             text = "No Peer Conversations",
-                            color = Color.White,
+                            color = theme.textPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontSize = 15.sp
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Start a direct conversation with any Tor Onion peer address",
-                            color = TextSecondary,
+                            color = theme.textSecondary,
                             fontSize = 12.sp
                         )
                     }
@@ -227,29 +210,32 @@ fun ChatListScreen(
     if (showNewChatDialog) {
         AlertDialog(
             onDismissRequest = { showNewChatDialog = false },
-            containerColor = DarkSurfaceElevated,
+            containerColor = theme.surface,
             title = {
-                Text("Start P2P Encrypted Chat", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("Start P2P Encrypted Chat", color = theme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
             },
             text = {
                 Column {
                     Text(
                         text = "Enter peer Tor Onion address or contact ID to initiate an encrypted session:",
-                        color = TextSecondary,
-                        fontSize = 13.sp
+                        color = theme.textSecondary,
+                        fontSize = 12.5.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     OutlinedTextField(
                         value = newPeerOnionInput,
                         onValueChange = { newPeerOnionInput = it },
-                        placeholder = { Text("e.g. torpeer9x...onion", color = TextMuted) },
+                        placeholder = { Text("e.g. torpeer9x...onion", color = theme.textMuted, fontSize = 12.sp) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = TorPurple,
-                            unfocusedBorderColor = DarkBorder,
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
+                            focusedContainerColor = theme.surfaceElevated,
+                            unfocusedContainerColor = theme.surfaceElevated,
+                            focusedBorderColor = theme.accentPrimary,
+                            unfocusedBorderColor = theme.border,
+                            focusedTextColor = theme.textPrimary,
+                            unfocusedTextColor = theme.textPrimary
                         ),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth().testTag("new_chat_peer_input")
                     )
                 }
@@ -270,16 +256,17 @@ fun ChatListScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = BubbleAquaPrimary,
-                        contentColor = DarkBackground
-                    )
+                        containerColor = theme.accentPrimary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Connect & Chat", fontWeight = FontWeight.Bold)
+                    Text("Connect & Chat", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showNewChatDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = theme.textSecondary)
                 }
             }
         )
@@ -292,42 +279,44 @@ fun PeerChatItem(
     lastMessage: MessageEntity?,
     onClick: () -> Unit
 ) {
+    val theme = LocalMedicalTheme.current
+
     Card(
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = DarkSurfaceElevated),
+        colors = CardDefaults.cardColors(containerColor = theme.surface),
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, DarkBorder, RoundedCornerShape(14.dp))
+            .border(1.dp, theme.border, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .testTag("peer_item_${peer.peerId}")
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Peer Avatar with Identicon gradient
+            // Peer Avatar with medical initial circle
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(42.dp)
                     .clip(CircleShape)
                     .background(
-                        if (peer.isVerified) BubbleCarbonationGreen.copy(alpha = 0.2f)
-                        else BubbleAquaPrimary.copy(alpha = 0.15f)
+                        if (peer.isVerified) theme.alertGreen.copy(alpha = 0.12f)
+                        else theme.accentPrimary.copy(alpha = 0.12f)
                     )
                     .border(
                         1.dp,
-                        if (peer.isVerified) BubbleCarbonationGreen else BubbleAquaPrimary.copy(alpha = 0.6f),
+                        if (peer.isVerified) theme.alertGreen else theme.accentPrimary.copy(alpha = 0.5f),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = peer.alias.take(2).uppercase(),
-                    color = if (peer.isVerified) BubbleCarbonationGreen else BubbleAquaLight,
+                    color = if (peer.isVerified) theme.alertGreen else theme.accentPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
+                    fontSize = 14.sp
                 )
             }
 
@@ -343,8 +332,8 @@ fun PeerChatItem(
                         Text(
                             text = peer.alias,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            color = Color.White,
+                            fontSize = 14.sp,
+                            color = theme.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -352,41 +341,31 @@ fun PeerChatItem(
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Verified Key",
-                                tint = TorOnionGreen,
-                                modifier = Modifier.size(14.dp)
+                                contentDescription = "Verified Contact",
+                                tint = theme.alertGreen,
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                     }
 
                     if (lastMessage != null) {
-                        val timeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastMessage.timestamp))
                         Text(
-                            text = timeStr,
-                            fontSize = 11.sp,
-                            color = TextMuted
+                            text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastMessage.timestamp)),
+                            fontSize = 10.5.sp,
+                            color = theme.textMuted
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(11.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = lastMessage?.content ?: peer.onionAddress,
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = lastMessage?.content ?: "Direct encrypted peer connection",
+                    fontSize = 12.sp,
+                    color = theme.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
@@ -401,6 +380,7 @@ fun ChatConversationScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val theme = LocalMedicalTheme.current
     val allMessages by viewModel.allMessages.collectAsStateWithLifecycle()
     val peers by viewModel.peers.collectAsStateWithLifecycle()
     val peer = peers.firstOrNull { it.peerId == peerId } ?: PeerContactEntity(
@@ -428,25 +408,25 @@ fun ChatConversationScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = peer.alias,
-                                fontSize = 16.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = theme.textPrimary
                             )
                             if (peer.isVerified) {
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = "Verified",
-                                    tint = BubbleCarbonationGreen,
-                                    modifier = Modifier.size(14.dp)
+                                    tint = theme.alertGreen,
+                                    modifier = Modifier.size(13.dp)
                                 )
                             }
                         }
                         Text(
                             text = peer.onionAddress,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = BubbleAquaLight
+                            color = theme.accentPrimary
                         )
                     }
                 },
@@ -455,7 +435,7 @@ fun ChatConversationScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = theme.textPrimary
                         )
                     }
                 },
@@ -464,11 +444,14 @@ fun ChatConversationScreen(
                         Icon(
                             imageVector = Icons.Default.Fingerprint,
                             contentDescription = "Verify Fingerprint",
-                            tint = BubbleCyan
+                            tint = theme.accentPrimary
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkSurfaceElevated.copy(alpha = 0.95f))
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = theme.surface,
+                    titleContentColor = theme.textPrimary
+                )
             )
         }
     ) { innerPadding ->
@@ -481,7 +464,7 @@ fun ChatConversationScreen(
             if (relatedListingMessage != null) {
                 Card(
                     shape = RoundedCornerShape(0.dp),
-                    colors = CardDefaults.cardColors(containerColor = DarkSurfaceHigh),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -498,23 +481,23 @@ fun ChatConversationScreen(
                             Icon(
                                 imageVector = Icons.Default.ShoppingBag,
                                 contentDescription = null,
-                                tint = TorOnionGreen,
-                                modifier = Modifier.size(20.dp)
+                                tint = theme.accentPrimary,
+                                modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
                                     text = relatedListingMessage.relatedListingTitle ?: "Marketplace Item",
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = Color.White,
+                                    fontSize = 12.5.sp,
+                                    color = theme.textPrimary,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
                                     text = "Price: ${relatedListingMessage.relatedListingPrice ?: "Local Handshake"}",
                                     fontSize = 11.sp,
-                                    color = TorOnionGreen,
+                                    color = theme.alertGreen,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
@@ -522,8 +505,8 @@ fun ChatConversationScreen(
 
                         Text(
                             text = "Direct P2P Order",
-                            fontSize = 11.sp,
-                            color = TextMuted,
+                            fontSize = 10.5.sp,
+                            color = theme.textMuted,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -534,28 +517,28 @@ fun ChatConversationScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceElevated)
-                        .border(1.dp, DarkBorder, RoundedCornerShape(12.dp))
+                        .background(theme.surface)
+                        .border(1.dp, theme.border, RoundedCornerShape(12.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = TorOnionGreen,
+                        tint = theme.alertGreen,
                         modifier = Modifier.size(11.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Messages are End-to-End Encrypted via Tor (3 Hops)",
+                        text = "End-to-End Encrypted via Tor (3 Hops)",
                         fontSize = 10.sp,
-                        color = TextSecondary
+                        color = theme.textSecondary
                     )
                 }
             }
@@ -581,22 +564,25 @@ fun ChatConversationScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(DarkSurfaceElevated)
-                    .border(1.dp, DarkBorder)
+                    .background(theme.surface)
+                    .border(1.dp, theme.border)
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Encrypted message...", color = TextMuted, fontSize = 13.sp) },
+                    placeholder = { Text("Encrypted message...", color = theme.textMuted, fontSize = 12.5.sp) },
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = BubbleAquaPrimary,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedContainerColor = theme.surfaceElevated,
+                        unfocusedContainerColor = theme.surfaceElevated,
+                        focusedBorderColor = theme.accentPrimary,
+                        unfocusedBorderColor = theme.border,
+                        focusedTextColor = theme.textPrimary,
+                        unfocusedTextColor = theme.textPrimary
                     ),
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .weight(1f)
                         .testTag("chat_message_input")
@@ -620,68 +606,68 @@ fun ChatConversationScreen(
                         }
                     },
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
-                        .background(BubbleAquaPrimary)
+                        .background(theme.accentPrimary)
                         .testTag("send_message_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send Encrypted",
-                        tint = DarkBackground,
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
         }
     }
 
-    // Inspect Ciphertext Dialog (Shows true local encryption)
+    // Inspect Ciphertext Dialog
     if (showCipherModal != null) {
         val m = showCipherModal!!
         AlertDialog(
             onDismissRequest = { showCipherModal = null },
-            containerColor = DarkSurfaceElevated,
+            containerColor = theme.surface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Lock, contentDescription = null, tint = TorOnionGreen)
+                    Icon(Icons.Default.Lock, contentDescription = null, tint = theme.alertGreen)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("AES-256-GCM Payload", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("AES-256-GCM Payload", color = theme.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column {
                     Text(
-                        text = "This message was transmitted encrypted through Tor onion routing. Decrypted strictly on phone:",
-                        fontSize = 12.sp,
-                        color = TextSecondary
+                        text = "Transmitted encrypted through Tor SOCKS5 proxy. Decrypted strictly in-memory on this phone:",
+                        fontSize = 11.5.sp,
+                        color = theme.textSecondary
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkBackground)
+                            .background(theme.surfaceElevated)
                             .padding(10.dp)
                     ) {
                         Text(
                             text = m.encryptedBlob.ifEmpty { "AES_GCM_CIPHERTEXT_BASE64_PAYLOAD" },
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontFamily = FontFamily.Monospace,
-                            color = TorCyan
+                            color = theme.accentPrimary
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Decrypted Text:\n${m.content}",
                         fontSize = 12.sp,
-                        color = Color.White
+                        color = theme.textPrimary
                     )
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showCipherModal = null }) {
-                    Text("Close", color = TorPurpleLight)
+                    Text("Close", color = theme.accentPrimary)
                 }
             }
         )
@@ -691,42 +677,42 @@ fun ChatConversationScreen(
     if (showFingerprintModal) {
         AlertDialog(
             onDismissRequest = { showFingerprintModal = false },
-            containerColor = DarkSurfaceElevated,
+            containerColor = theme.surface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = TorCyan)
+                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = theme.accentPrimary)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verify Peer Fingerprint", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Verify Peer Fingerprint", color = theme.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             },
             text = {
                 Column {
                     Text(
-                        text = "Compare this cryptographic key fingerprint with your peer out-of-band to prevent MITM attacks:",
-                        color = TextSecondary,
-                        fontSize = 12.sp
+                        text = "Compare this cryptographic key fingerprint out-of-band to prevent MITM attacks:",
+                        color = theme.textSecondary,
+                        fontSize = 11.5.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkBackground)
+                            .background(theme.surfaceElevated)
                             .padding(12.dp)
                     ) {
                         Text(
                             text = peer.fingerprint,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = TorOnionGreen
+                            color = theme.alertGreen
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Status: ${if (peer.isVerified) "Verified Contact" else "Unverified (Trust on first use)"}",
-                        fontSize = 12.sp,
-                        color = if (peer.isVerified) TorOnionGreen else TextMuted
+                        fontSize = 11.5.sp,
+                        color = if (peer.isVerified) theme.alertGreen else theme.textMuted
                     )
                 }
             },
@@ -738,16 +724,17 @@ fun ChatConversationScreen(
                         Toast.makeText(context, "Fingerprint copied!", Toast.LENGTH_SHORT).show()
                         showFingerprintModal = false
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = TorPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accentPrimary),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Fingerprint")
+                    Text("Copy Fingerprint", fontSize = 12.sp)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showFingerprintModal = false }) {
-                    Text("Close", color = TextSecondary)
+                    Text("Close", color = theme.textSecondary)
                 }
             }
         )
@@ -759,10 +746,11 @@ fun MessageBubble(
     message: MessageEntity,
     onInspectCipher: () -> Unit
 ) {
+    val theme = LocalMedicalTheme.current
     val isOut = message.isOutgoing
     val alignment = if (isOut) Alignment.End else Alignment.Start
-    val bg = if (isOut) TorPurpleDark else DarkSurfaceElevated
-    val border = if (isOut) TorPurple else DarkBorder
+    val bg = if (isOut) theme.accentPrimary.copy(alpha = 0.15f) else theme.surface
+    val border = if (isOut) theme.accentPrimary.copy(alpha = 0.4f) else theme.border
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -790,16 +778,16 @@ fun MessageBubble(
                     )
                 )
                 .clickable(onClick = onInspectCipher)
-                .padding(horizontal = 12.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 9.dp)
         ) {
             Column {
                 Text(
                     text = message.content,
-                    color = Color.White,
+                    color = theme.textPrimary,
                     fontSize = 13.sp
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(3.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -808,19 +796,19 @@ fun MessageBubble(
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = "Encrypted",
-                        tint = if (isOut) TorPurpleLight else TorOnionGreen,
+                        tint = if (isOut) theme.accentPrimary else theme.alertGreen,
                         modifier = Modifier.size(10.dp)
                     )
                     Text(
                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                        fontSize = 10.sp,
-                        color = TextMuted
+                        fontSize = 9.5.sp,
+                        color = theme.textMuted
                     )
                     if (isOut) {
                         Text(
                             text = "• ${message.status}",
-                            fontSize = 10.sp,
-                            color = TorPurpleLight
+                            fontSize = 9.5.sp,
+                            color = theme.accentPrimary
                         )
                     }
                 }

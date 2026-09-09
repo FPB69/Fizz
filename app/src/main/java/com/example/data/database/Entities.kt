@@ -51,7 +51,8 @@ data class PeerContactEntity(
     val isOnline: Boolean = true,
     val circuitHops: Int = 3,
     val isVerified: Boolean = false,
-    val connectionStatus: String = "CONNECTED" // "NOT_CONNECTED", "PENDING_SENT", "PENDING_RECEIVED", "CONNECTED"
+    val connectionStatus: String = "CONNECTED", // "NOT_CONNECTED", "PENDING_SENT", "PENDING_RECEIVED", "CONNECTED"
+    val draftMessage: String = ""
 )
 
 @Entity(tableName = "talk_requests")

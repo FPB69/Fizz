@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "Fizz 1.2"
+rootProject.name = "Fizz 1.3"
 
 include(":app")

@@ -751,6 +751,12 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun saveDraft(peerId: String, draftText: String) {
+        viewModelScope.launch {
+            chatRepo.saveDraft(peerId, draftText)
+        }
+    }
+
     fun panicWipeAllData() {
         viewModelScope.launch {
             marketplaceRepo.wipeAll()

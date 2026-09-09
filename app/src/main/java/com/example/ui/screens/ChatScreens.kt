@@ -747,9 +747,16 @@ fun ChatConversationScreen(
     val conversationMessages = allMessages.filter { it.peerId == peerId }.sortedBy { it.timestamp }
     val relatedListingMessage = conversationMessages.lastOrNull { it.relatedListingId != null }
 
-    var inputText by remember { mutableStateOf("") }
+    var inputText by remember(peerId) { mutableStateOf(peer.draftMessage) }
     var showCipherModal by remember { mutableStateOf<MessageEntity?>(null) }
     var showFingerprintModal by remember { mutableStateOf(false) }
+
+    // Save draft when typing or leaving
+    androidx.compose.runtime.DisposableEffect(peerId, inputText) {
+        onDispose {
+            viewModel.saveDraft(peerId, inputText)
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

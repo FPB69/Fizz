@@ -316,6 +316,13 @@ class ChatRepository(
         peerDao.updateVerification(peerId, verified)
     }
 
+    suspend fun saveDraft(peerId: String, draftText: String) = withContext(Dispatchers.IO) {
+        val peer = peerDao.getPeer(peerId)
+        if (peer != null) {
+            peerDao.insertPeer(peer.copy(draftMessage = draftText))
+        }
+    }
+
     suspend fun deleteConversation(peerId: String) {
         messageDao.deleteConversation(peerId)
     }

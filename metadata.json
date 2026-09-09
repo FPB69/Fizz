@@ -1,6 +1,6 @@
 {
-  "name": "Fizz",
-  "description": "Fizz - Private, encrypted P2P messaging and decentralized marketplace routed through Tor with zero cloud storage and bubble water theme.",
+  "name": "Fizz 1.1",
+  "description": "Fizz 1.1 - Clean, blue bubble water aesthetic P2P encrypted marketplace & Tor messenger with QR Code direct pairing, ephemeral auto-destruct messages, and sovereign privacy.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

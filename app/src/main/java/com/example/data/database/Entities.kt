@@ -34,7 +34,9 @@ data class MessageEntity(
     val status: String = "DELIVERED", // SENT, DELIVERED, RECEIVED, VERIFIED
     val relatedListingId: String? = null,
     val relatedListingTitle: String? = null,
-    val relatedListingPrice: String? = null
+    val relatedListingPrice: String? = null,
+    val autoDestructSeconds: Long? = null, // e.g., 10, 30, 60, 300, 3600, 86400 or null (permanent)
+    val expiresAt: Long? = null // epoch ms timestamp when message is permanently purged from SQLite
 )
 
 @Entity(tableName = "peer_contacts")

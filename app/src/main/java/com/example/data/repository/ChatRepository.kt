@@ -33,9 +33,15 @@ class ChatRepository(
         text: String,
         relatedListingId: String? = null,
         relatedListingTitle: String? = null,
-        relatedListingPrice: String? = null
+        relatedListingPrice: String? = null,
+        autoDestructSeconds: Long? = null
     ): MessageEntity = withContext(Dispatchers.IO) {
         val cipherPayload = cryptoManager.encryptAesGcm(text)
+        val now = System.currentTimeMillis()
+        val expiresAt = if (autoDestructSeconds != null && autoDestructSeconds > 0) {
+            now + (autoDestructSeconds * 1000L)
+        } else null
+
         val msg = MessageEntity(
             id = "msg_${UUID.randomUUID().toString().take(8)}",
             peerId = peerId,
@@ -43,11 +49,13 @@ class ChatRepository(
             content = text,
             encryptedBlob = cipherPayload,
             isOutgoing = true,
-            timestamp = System.currentTimeMillis(),
+            timestamp = now,
             status = "DELIVERED",
             relatedListingId = relatedListingId,
             relatedListingTitle = relatedListingTitle,
-            relatedListingPrice = relatedListingPrice
+            relatedListingPrice = relatedListingPrice,
+            autoDestructSeconds = autoDestructSeconds,
+            expiresAt = expiresAt
         )
         messageDao.insertMessage(msg)
 
@@ -78,9 +86,15 @@ class ChatRepository(
         content: String,
         listingId: String? = null,
         listingTitle: String? = null,
-        listingPrice: String? = null
+        listingPrice: String? = null,
+        autoDestructSeconds: Long? = null
     ) = withContext(Dispatchers.IO) {
         val decrypted = cryptoManager.decryptAesGcm(content)
+        val now = System.currentTimeMillis()
+        val expiresAt = if (autoDestructSeconds != null && autoDestructSeconds > 0) {
+            now + (autoDestructSeconds * 1000L)
+        } else null
+
         val msg = MessageEntity(
             id = "msg_${UUID.randomUUID().toString().take(8)}",
             peerId = senderId,
@@ -88,11 +102,13 @@ class ChatRepository(
             content = decrypted,
             encryptedBlob = content,
             isOutgoing = false,
-            timestamp = System.currentTimeMillis(),
+            timestamp = now,
             status = "VERIFIED",
             relatedListingId = listingId,
             relatedListingTitle = listingTitle,
-            relatedListingPrice = listingPrice
+            relatedListingPrice = listingPrice,
+            autoDestructSeconds = autoDestructSeconds,
+            expiresAt = expiresAt
         )
         messageDao.insertMessage(msg)
 
@@ -112,8 +128,36 @@ class ChatRepository(
         }
     }
 
+    suspend fun purgeExpiredMessages(currentTime: Long = System.currentTimeMillis()): Int = withContext(Dispatchers.IO) {
+        messageDao.deleteExpiredMessages(currentTime)
+    }
+
+    suspend fun deleteMessage(id: String) = withContext(Dispatchers.IO) {
+        messageDao.deleteMessageById(id)
+    }
+
     suspend fun saveContact(peer: PeerContactEntity) {
         peerDao.insertPeer(peer)
+    }
+
+    suspend fun addOrUpdatePeer(
+        peerId: String,
+        displayName: String,
+        onionAddress: String,
+        publicKeyFingerprint: String
+    ) = withContext(Dispatchers.IO) {
+        val existing = peerDao.getPeer(peerId)
+        val entity = PeerContactEntity(
+            peerId = peerId,
+            alias = displayName.ifEmpty { onionAddress.take(14) + "..." },
+            onionAddress = onionAddress,
+            publicKey = "PUB_${peerId.take(12)}",
+            fingerprint = publicKeyFingerprint.ifEmpty { "FP_${onionAddress.take(8).uppercase()}" },
+            lastSeen = System.currentTimeMillis(),
+            isOnline = true,
+            isVerified = true
+        )
+        peerDao.insertPeer(entity)
     }
 
     suspend fun verifyPeer(peerId: String, verified: Boolean) {

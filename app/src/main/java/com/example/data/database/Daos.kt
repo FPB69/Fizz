@@ -51,6 +51,12 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
+    @Query("DELETE FROM messages WHERE expiresAt IS NOT NULL AND expiresAt <= :currentTime")
+    suspend fun deleteExpiredMessages(currentTime: Long): Int
+
+    @Query("DELETE FROM messages WHERE id = :id")
+    suspend fun deleteMessageById(id: String)
+
     @Query("DELETE FROM messages WHERE peerId = :peerId")
     suspend fun deleteConversation(peerId: String)
 

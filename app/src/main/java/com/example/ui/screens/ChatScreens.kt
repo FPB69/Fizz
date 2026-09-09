@@ -27,17 +27,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AutoDelete
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -68,6 +75,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
+import com.example.ui.components.PeerQrConnectionDialog
 import com.example.ui.theme.LocalMedicalTheme
 import com.example.ui.viewmodel.TorPeerViewModel
 import java.text.SimpleDateFormat
@@ -83,6 +91,7 @@ fun ChatListScreen(
     val theme = LocalMedicalTheme.current
     val peers by viewModel.peers.collectAsStateWithLifecycle()
     val allMessages by viewModel.allMessages.collectAsStateWithLifecycle()
+    val showPeerQrDialog by viewModel.showPeerQrDialog.collectAsStateWithLifecycle()
     var showNewChatDialog by remember { mutableStateOf(false) }
     var newPeerOnionInput by remember { mutableStateOf("") }
 
@@ -135,26 +144,48 @@ fun ChatListScreen(
                 }
 
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(theme.alertGreen.copy(alpha = 0.12f))
-                        .border(1.dp, theme.alertGreen.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = theme.alertGreen,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "AES-256-GCM",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = theme.alertGreen
-                    )
+                    IconButton(
+                        onClick = { viewModel.openPeerQrDialog() },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(theme.surfaceElevated)
+                            .border(1.dp, theme.borderGold, CircleShape)
+                            .testTag("chat_qr_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCode2,
+                            contentDescription = "P2P QR Direct Link",
+                            tint = theme.accentPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(theme.alertGreen.copy(alpha = 0.12f))
+                            .border(1.dp, theme.alertGreen.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = theme.alertGreen,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "AES-256-GCM",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.alertGreen
+                        )
+                    }
                 }
             }
 
@@ -269,6 +300,23 @@ fun ChatListScreen(
                     Text("Cancel", color = theme.textSecondary)
                 }
             }
+        )
+    }
+
+    if (showPeerQrDialog) {
+        PeerQrConnectionDialog(
+            myPeerId = viewModel.cryptoManager.myPeerId,
+            myOnionAddress = viewModel.cryptoManager.myOnionAddress,
+            myFingerprint = viewModel.cryptoManager.myFingerprint,
+            onConnectToPeer = { peer ->
+                viewModel.connectToPeerParsed(
+                    peerId = peer.peerId,
+                    onionAddress = peer.onionAddress,
+                    fingerprint = peer.fingerprint,
+                    displayName = peer.displayName
+                )
+            },
+            onDismiss = { viewModel.dismissPeerQrDialog() }
         )
     }
 }
@@ -440,6 +488,85 @@ fun ChatConversationScreen(
                     }
                 },
                 actions = {
+                    var showTimerMenu by remember { mutableStateOf(false) }
+                    val autoDestruct by viewModel.selectedAutoDestructSeconds.collectAsStateWithLifecycle()
+
+                    Box {
+                        IconButton(
+                            onClick = { showTimerMenu = true },
+                            modifier = Modifier.testTag("auto_destruct_timer_button")
+                        ) {
+                            Icon(
+                                imageVector = if (autoDestruct != null) Icons.Default.LocalFireDepartment else Icons.Default.Timer,
+                                contentDescription = "Auto-Destruct Timer",
+                                tint = if (autoDestruct != null) theme.alertAmber else theme.textSecondary
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showTimerMenu,
+                            onDismissRequest = { showTimerMenu = false },
+                            modifier = Modifier.background(theme.surface)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Off (Permanent Storage)", color = theme.textPrimary, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(null)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textMuted, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 10 Seconds (Ultra-Ephemeral)", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(10)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 30 Seconds", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(30)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 1 Minute", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(60)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 5 Minutes", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(300)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 1 Hour", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(3600)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("🔥 24 Hours", color = theme.alertAmber, fontSize = 12.sp) },
+                                onClick = {
+                                    viewModel.setAutoDestructTimer(86400)
+                                    showTimerMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
+                            )
+                        }
+                    }
+
                     IconButton(onClick = { showFingerprintModal = true }) {
                         Icon(
                             imageVector = Icons.Default.Fingerprint,
@@ -455,6 +582,8 @@ fun ChatConversationScreen(
             )
         }
     ) { innerPadding ->
+        val autoDestructSeconds by viewModel.selectedAutoDestructSeconds.collectAsStateWithLifecycle()
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -513,33 +642,63 @@ fun ChatConversationScreen(
                 }
             }
 
-            // Security Notification Pill
-            Box(
+            // Security & Auto-Destruct Indicator Banner
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                contentAlignment = Alignment.Center
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
+                Box(
                     modifier = Modifier
+                        .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(theme.surface)
                         .border(1.dp, theme.border, RoundedCornerShape(12.dp))
                         .padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = theme.alertGreen,
-                        modifier = Modifier.size(11.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "End-to-End Encrypted via Tor (3 Hops)",
-                        fontSize = 10.sp,
-                        color = theme.textSecondary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = theme.alertGreen,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Tor Multi-Hop Encrypted",
+                            fontSize = 10.sp,
+                            color = theme.textSecondary
+                        )
+                    }
+                }
+
+                if (autoDestructSeconds != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(theme.alertAmber.copy(alpha = 0.12f))
+                            .border(1.dp, theme.alertAmber.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = theme.alertAmber,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Auto-Destruct: ${autoDestructSeconds}s",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = theme.alertAmber
+                            )
+                        }
+                    }
                 }
             }
 
@@ -572,12 +731,18 @@ fun ChatConversationScreen(
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = { Text("Encrypted message...", color = theme.textMuted, fontSize = 12.5.sp) },
+                    placeholder = {
+                        Text(
+                            text = if (autoDestructSeconds != null) "Vaporizing message (${autoDestructSeconds}s)..." else "Encrypted message...",
+                            color = theme.textMuted,
+                            fontSize = 12.5.sp
+                        )
+                    },
                     maxLines = 4,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = theme.surfaceElevated,
                         unfocusedContainerColor = theme.surfaceElevated,
-                        focusedBorderColor = theme.accentPrimary,
+                        focusedBorderColor = if (autoDestructSeconds != null) theme.alertAmber else theme.accentPrimary,
                         unfocusedBorderColor = theme.border,
                         focusedTextColor = theme.textPrimary,
                         unfocusedTextColor = theme.textPrimary
@@ -608,7 +773,7 @@ fun ChatConversationScreen(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(theme.accentPrimary)
+                        .background(if (autoDestructSeconds != null) theme.alertAmber else theme.accentPrimary)
                         .testTag("send_message_button")
                 ) {
                     Icon(
@@ -622,7 +787,7 @@ fun ChatConversationScreen(
         }
     }
 
-    // Inspect Ciphertext Dialog
+    // Inspect Ciphertext Dialog with Burn / Vaporize Option
     if (showCipherModal != null) {
         val m = showCipherModal!!
         AlertDialog(
@@ -663,11 +828,40 @@ fun ChatConversationScreen(
                         fontSize = 12.sp,
                         color = theme.textPrimary
                     )
+
+                    if (m.expiresAt != null) {
+                        val remainingSec = ((m.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Auto-Destruct armed: ${remainingSec}s remaining until wiped",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = theme.alertAmber
+                            )
+                        }
+                    }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCipherModal = null }) {
-                    Text("Close", color = theme.accentPrimary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = {
+                            viewModel.deleteMessage(m.id)
+                            showCipherModal = null
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.alertRed, contentColor = Color.White),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Burn Now", fontSize = 11.sp)
+                    }
+                    TextButton(onClick = { showCipherModal = null }) {
+                        Text("Close", color = theme.accentPrimary)
+                    }
                 }
             }
         )
@@ -750,7 +944,11 @@ fun MessageBubble(
     val isOut = message.isOutgoing
     val alignment = if (isOut) Alignment.End else Alignment.Start
     val bg = if (isOut) theme.accentPrimary.copy(alpha = 0.15f) else theme.surface
-    val border = if (isOut) theme.accentPrimary.copy(alpha = 0.4f) else theme.border
+    val border = if (message.expiresAt != null) theme.alertAmber.copy(alpha = 0.6f) else if (isOut) theme.accentPrimary.copy(alpha = 0.4f) else theme.border
+
+    val remainingSeconds = if (message.expiresAt != null) {
+        ((message.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+    } else null
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -794,9 +992,9 @@ fun MessageBubble(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Lock,
+                        imageVector = if (remainingSeconds != null) Icons.Default.LocalFireDepartment else Icons.Default.Lock,
                         contentDescription = "Encrypted",
-                        tint = if (isOut) theme.accentPrimary else theme.alertGreen,
+                        tint = if (remainingSeconds != null) theme.alertAmber else if (isOut) theme.accentPrimary else theme.alertGreen,
                         modifier = Modifier.size(10.dp)
                     )
                     Text(
@@ -804,7 +1002,14 @@ fun MessageBubble(
                         fontSize = 9.5.sp,
                         color = theme.textMuted
                     )
-                    if (isOut) {
+                    if (remainingSeconds != null) {
+                        Text(
+                            text = "• 🔥 ${remainingSeconds}s",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.alertAmber
+                        )
+                    } else if (isOut) {
                         Text(
                             text = "• ${message.status}",
                             fontSize = 9.5.sp,

@@ -2,62 +2,124 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Minimalist Medical App Palette (Dark Theme & Light Theme as in Dribbble reference)
-// Light Theme Palette
-val MedicalLightBg = Color(0xFFF8FAFC)           // Crisp clinic off-white
-val MedicalLightSurface = Color(0xFFFFFFFF)      // Pure sterile white card
-val MedicalLightSurfaceElevated = Color(0xFFF1F5F9) // Subtle elevated card
-val MedicalLightSurfaceHigh = Color(0xFFE2E8F0)  // Highlighted pill container
-val MedicalLightBorder = Color(0xFFE2E8F0)       // Ultra-fine light border
-val MedicalLightTextPrimary = Color(0xFF0F172A)  // Deep slate primary
-val MedicalLightTextSecondary = Color(0xFF475569)// Refined secondary slate
-val MedicalLightTextMuted = Color(0xFF94A3B8)    // Soft slate muted
+// ============================================================================
+// FIZZ 1.1 BLUE BUBBLE WATER THEME
+// Deep Oceanic Sapphire • Electric Aqua Cyan • Mineral Foam White • Sky Blue
+// ============================================================================
 
-// Dark Theme Palette
-val MedicalDarkBg = Color(0xFF0B0F19)            // Obsidian charcoal
-val MedicalDarkSurface = Color(0xFF131B2E)       // Medical elevated surface
-val MedicalDarkSurfaceElevated = Color(0xFF1A243B) // High-contrast container
-val MedicalDarkSurfaceHigh = Color(0xFF23314A)   // Pill surface
-val MedicalDarkBorder = Color(0xFF243044)        // Sleek subtle border line
-val MedicalDarkTextPrimary = Color(0xFFF8FAFC)   // Crisp ice white
-val MedicalDarkTextSecondary = Color(0xFF94A3B8) // Soft metallic slate
-val MedicalDarkTextMuted = Color(0xFF64748B)     // Muted deep slate
+// Dark Bubble Water Palette (Deep Midnight Ocean)
+val BubbleWaterDarkBg = Color(0xFF040D1A)               // Deep midnight ocean abyss
+val BubbleWaterDarkSurface = Color(0xFF0A1C36)          // Oceanic sapphire card surface
+val BubbleWaterDarkSurfaceElevated = Color(0xFF0F294D)  // Elevated translucent aquatic card
+val BubbleWaterDarkSurfaceHigh = Color(0xFF163B6B)      // Pill / chip / input surface
+val BubbleWaterDarkBorder = Color(0xFF1B406E)           // Aquatic hairline border
+val BubbleWaterDarkBorderCyan = Color(0x6600E5FF)       // Glowing Electric Aqua border
+val BubbleWaterDarkTextPrimary = Color(0xFFF0F9FF)      // Crystal ice white
+val BubbleWaterDarkTextSecondary = Color(0xFF93C5FD)    // Soft sky blue slate
+val BubbleWaterDarkTextMuted = Color(0xFF60A5FA)        // Muted sapphire steel
 
-// Medical & Anonymity Brand Accents
-val MedicalTeal = Color(0xFF0EA5E9)              // Surgical clinical cyan-sky
-val MedicalTealDark = Color(0xFF0284C7)          // Deep cyan
-val MedicalCyan = Color(0xFF38BDF8)              // Electric pulse cyan
-val MedicalMint = Color(0xFF10B981)              // Heartbeat health green
-val MedicalMintDark = Color(0xFF059669)          // Muted health green
-val MedicalAmber = Color(0xFFF59E0B)             // Diagnostic warning
-val MedicalRed = Color(0xFFEF4444)               // Emergency alert
-val MedicalViolet = Color(0xFF6366F1)            // Encrypted biometric indigo
+// Light Bubble Water Palette (Crystal Spring Mineral Water)
+val BubbleWaterLightBg = Color(0xFFF0F9FF)              // Crisp spring water canvas
+val BubbleWaterLightSurface = Color(0xFFFFFFFF)         // Pure crystal white
+val BubbleWaterLightSurfaceElevated = Color(0xFFE0F2FE) // Soft sky elevated surface
+val BubbleWaterLightSurfaceHigh = Color(0xFFBAE6FD)     // Mineral highlight container
+val BubbleWaterLightBorder = Color(0xFF7DD3FC)          // Gentle cyan hairline border
+val BubbleWaterLightBorderCyan = Color(0xFF0284C7)      // Deep aqua border
+val BubbleWaterLightTextPrimary = Color(0xFF082F49)     // Deep marine blue slate
+val BubbleWaterLightTextSecondary = Color(0xFF0369A1)   // Oceanic blue charcoal
+val BubbleWaterLightTextMuted = Color(0xFF0284C7)       // Soft cyan graphite
 
-// Backward compatibility references
-val BubbleAquaPrimary = MedicalCyan
-val BubbleAquaLight = Color(0xFF7DD3FC)
-val BubbleAquaDark = MedicalTealDark
-val BubbleCyan = MedicalCyan
-val BubbleCarbonationGreen = MedicalMint
-val BubbleFoamWhite = Color(0xFFF0FDF4)
+// Electric Cyan & Bubble Water Accents
+val BubbleAquaPrimary = Color(0xFF00E5FF)               // Electric Aqua Cyan (Signature)
+val BubbleAquaLight = Color(0xFF70F3FF)                 // Luminescent Pale Aqua
+val BubbleAquaDark = Color(0xFF00B4D8)                  // Deep Ocean Aqua
+val BubbleSkyBlue = Color(0xFF38BDF8)                   // Crisp Sky Blue
+val BubbleMarineBlue = Color(0xFF0284C7)                // Deep Marine Blue
+val BubbleEmerald = Color(0xFF10B981)                   // Verified Green
+val BubbleEmeraldDark = Color(0xFF059669)               // Forest Green
+val BubbleAmber = Color(0xFFF59E0B)                     // Warning Amber
+val BubbleCrimson = Color(0xFFEF4444)                   // Emergency Red
+val BubbleFoamWhite = Color(0xFFF0F9FF)                 // Carbonated Bubble White
 
-val TorPurple = MedicalTeal
-val TorPurpleLight = MedicalCyan
-val TorPurpleDark = MedicalTealDark
-val TorOnionGreen = MedicalMint
-val TorCyan = MedicalCyan
+// Compatibility mappings
+val ArcoDarkBg = BubbleWaterDarkBg
+val ArcoDarkSurface = BubbleWaterDarkSurface
+val ArcoDarkSurfaceElevated = BubbleWaterDarkSurfaceElevated
+val ArcoDarkSurfaceHigh = BubbleWaterDarkSurfaceHigh
+val ArcoDarkBorder = BubbleWaterDarkBorder
+val ArcoDarkBorderGold = BubbleWaterDarkBorderCyan
+val ArcoDarkTextPrimary = BubbleWaterDarkTextPrimary
+val ArcoDarkTextSecondary = BubbleWaterDarkTextSecondary
+val ArcoDarkTextMuted = BubbleWaterDarkTextMuted
 
-val DarkBackground = MedicalDarkBg
-val DarkSurface = MedicalDarkSurface
-val DarkSurfaceElevated = MedicalDarkSurfaceElevated
-val DarkSurfaceHigh = MedicalDarkSurfaceHigh
-val DarkBorder = MedicalDarkBorder
-val BubbleGlass = Color(0x1A38BDF8)
+val ArcoLightBg = BubbleWaterLightBg
+val ArcoLightSurface = BubbleWaterLightSurface
+val ArcoLightSurfaceElevated = BubbleWaterLightSurfaceElevated
+val ArcoLightSurfaceHigh = BubbleWaterLightSurfaceHigh
+val ArcoLightBorder = BubbleWaterLightBorder
+val ArcoLightBorderGold = BubbleWaterLightBorderCyan
+val ArcoLightTextPrimary = BubbleWaterLightTextPrimary
+val ArcoLightTextSecondary = BubbleWaterLightTextSecondary
+val ArcoLightTextMuted = BubbleWaterLightTextMuted
 
-val TextPrimary = MedicalDarkTextPrimary
-val TextSecondary = MedicalDarkTextSecondary
-val TextMuted = MedicalDarkTextMuted
+val ArcoGold = BubbleAquaPrimary
+val ArcoGoldLight = BubbleAquaLight
+val ArcoGoldDark = BubbleMarineBlue
+val ArcoBronze = BubbleSkyBlue
+val ArcoBronzeDark = BubbleMarineBlue
+val ArcoEmerald = BubbleEmerald
+val ArcoEmeraldDark = BubbleEmeraldDark
+val ArcoAmber = BubbleAmber
+val ArcoCrimson = BubbleCrimson
+val ArcoCobalt = BubbleSkyBlue
 
-val AccentAmber = MedicalAmber
-val ErrorRed = MedicalRed
-val SecurityShieldGreen = MedicalMint
+val MedicalDarkBg = BubbleWaterDarkBg
+val MedicalDarkSurface = BubbleWaterDarkSurface
+val MedicalDarkSurfaceElevated = BubbleWaterDarkSurfaceElevated
+val MedicalDarkSurfaceHigh = BubbleWaterDarkSurfaceHigh
+val MedicalDarkBorder = BubbleWaterDarkBorder
+val MedicalDarkTextPrimary = BubbleWaterDarkTextPrimary
+val MedicalDarkTextSecondary = BubbleWaterDarkTextSecondary
+val MedicalDarkTextMuted = BubbleWaterDarkTextMuted
+
+val MedicalLightBg = BubbleWaterLightBg
+val MedicalLightSurface = BubbleWaterLightSurface
+val MedicalLightSurfaceElevated = BubbleWaterLightSurfaceElevated
+val MedicalLightSurfaceHigh = BubbleWaterLightSurfaceHigh
+val MedicalLightBorder = BubbleWaterLightBorder
+val MedicalLightTextPrimary = BubbleWaterLightTextPrimary
+val MedicalLightTextSecondary = BubbleWaterLightTextSecondary
+val MedicalLightTextMuted = BubbleWaterLightTextMuted
+
+val MedicalTeal = BubbleAquaPrimary
+val MedicalTealDark = BubbleAquaDark
+val MedicalCyan = BubbleAquaLight
+val MedicalMint = BubbleEmerald
+val MedicalMintDark = BubbleEmeraldDark
+val MedicalAmber = BubbleAmber
+val MedicalRed = BubbleCrimson
+val MedicalViolet = BubbleSkyBlue
+
+val BubbleCyan = BubbleSkyBlue
+val BubbleCarbonationGreen = BubbleEmerald
+
+val TorPurple = BubbleAquaPrimary
+val TorPurpleLight = BubbleAquaLight
+val TorPurpleDark = BubbleAquaDark
+val TorOnionGreen = BubbleEmerald
+
+val DarkBackground = BubbleWaterDarkBg
+val DarkSurface = BubbleWaterDarkSurface
+val DarkSurfaceElevated = BubbleWaterDarkSurfaceElevated
+val DarkSurfaceHigh = BubbleWaterDarkSurfaceHigh
+val DarkBorder = BubbleWaterDarkBorder
+val BubbleGlass = Color(0x2600E5FF)
+
+val TextPrimary = BubbleWaterDarkTextPrimary
+val TextSecondary = BubbleWaterDarkTextSecondary
+val TextMuted = BubbleWaterDarkTextMuted
+
+val AccentAmber = BubbleAmber
+val ErrorRed = BubbleCrimson
+val SecurityShieldGreen = BubbleEmerald
+

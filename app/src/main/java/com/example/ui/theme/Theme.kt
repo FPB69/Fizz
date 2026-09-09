@@ -8,7 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// CompositionLocal to allow any component to easily know current theme mode & custom tokens
+// CompositionLocal to provide Arco Global Architectural Design Tokens
 data class MedicalThemeColors(
   val isDark: Boolean,
   val background: Color,
@@ -16,6 +16,7 @@ data class MedicalThemeColors(
   val surfaceElevated: Color,
   val surfaceHigh: Color,
   val border: Color,
+  val borderGold: Color,
   val textPrimary: Color,
   val textSecondary: Color,
   val textMuted: Color,
@@ -29,65 +30,66 @@ data class MedicalThemeColors(
 val LocalMedicalTheme = compositionLocalOf {
   MedicalThemeColors(
     isDark = true,
-    background = MedicalDarkBg,
-    surface = MedicalDarkSurface,
-    surfaceElevated = MedicalDarkSurfaceElevated,
-    surfaceHigh = MedicalDarkSurfaceHigh,
-    border = MedicalDarkBorder,
-    textPrimary = MedicalDarkTextPrimary,
-    textSecondary = MedicalDarkTextSecondary,
-    textMuted = MedicalDarkTextMuted,
-    accentPrimary = MedicalCyan,
-    accentSecondary = MedicalTeal,
-    alertGreen = MedicalMint,
-    alertAmber = MedicalAmber,
-    alertRed = MedicalRed
+    background = ArcoDarkBg,
+    surface = ArcoDarkSurface,
+    surfaceElevated = ArcoDarkSurfaceElevated,
+    surfaceHigh = ArcoDarkSurfaceHigh,
+    border = ArcoDarkBorder,
+    borderGold = ArcoDarkBorderGold,
+    textPrimary = ArcoDarkTextPrimary,
+    textSecondary = ArcoDarkTextSecondary,
+    textMuted = ArcoDarkTextMuted,
+    accentPrimary = ArcoGold,
+    accentSecondary = ArcoBronze,
+    alertGreen = ArcoEmerald,
+    alertAmber = ArcoAmber,
+    alertRed = ArcoCrimson
   )
 }
 
-private val MinimalMedicalDarkColorScheme = darkColorScheme(
-  primary = MedicalCyan,
-  onPrimary = MedicalDarkBg,
-  primaryContainer = MedicalDarkSurfaceElevated,
-  onPrimaryContainer = MedicalDarkTextPrimary,
-  secondary = MedicalMint,
-  onSecondary = MedicalDarkBg,
-  secondaryContainer = MedicalDarkSurfaceHigh,
-  onSecondaryContainer = MedicalMint,
-  tertiary = MedicalTeal,
-  onTertiary = MedicalDarkBg,
-  background = MedicalDarkBg,
-  onBackground = MedicalDarkTextPrimary,
-  surface = MedicalDarkSurface,
-  onSurface = MedicalDarkTextPrimary,
-  surfaceVariant = MedicalDarkSurfaceElevated,
-  onSurfaceVariant = MedicalDarkTextSecondary,
-  outline = MedicalDarkBorder,
-  outlineVariant = MedicalDarkSurfaceHigh,
-  error = MedicalRed,
-  onError = MedicalDarkBg
+private val ArcoDarkColorScheme = darkColorScheme(
+  primary = ArcoGold,
+  onPrimary = ArcoDarkBg,
+  primaryContainer = ArcoDarkSurfaceElevated,
+  onPrimaryContainer = ArcoGoldLight,
+  secondary = ArcoBronze,
+  onSecondary = ArcoDarkBg,
+  secondaryContainer = ArcoDarkSurfaceHigh,
+  onSecondaryContainer = ArcoBronze,
+  tertiary = ArcoGoldDark,
+  onTertiary = ArcoDarkBg,
+  background = ArcoDarkBg,
+  onBackground = ArcoDarkTextPrimary,
+  surface = ArcoDarkSurface,
+  onSurface = ArcoDarkTextPrimary,
+  surfaceVariant = ArcoDarkSurfaceElevated,
+  onSurfaceVariant = ArcoDarkTextSecondary,
+  outline = ArcoDarkBorder,
+  outlineVariant = ArcoDarkBorderGold,
+  error = ArcoCrimson,
+  onError = ArcoDarkBg
 )
 
-private val MinimalMedicalLightColorScheme = lightColorScheme(
-  primary = MedicalTealDark,
+private val ArcoLightColorScheme = lightColorScheme(
+  primary = ArcoGoldDark,
   onPrimary = Color.White,
-  primaryContainer = MedicalLightSurfaceElevated,
-  onPrimaryContainer = MedicalLightTextPrimary,
-  secondary = MedicalMintDark,
+  primaryContainer = ArcoLightSurfaceElevated,
+  onPrimaryContainer = ArcoLightTextPrimary,
+  secondary = ArcoBronzeDark,
   onSecondary = Color.White,
-  secondaryContainer = MedicalLightSurfaceHigh,
-  onSecondaryContainer = MedicalMintDark,
-  tertiary = MedicalTeal,
+  secondaryContainer = ArcoLightSurfaceHigh,
+  onSecondaryContainer = ArcoBronzeDark,
+  tertiary = ArcoGold,
   onTertiary = Color.White,
-  background = MedicalLightBg,
-  onBackground = MedicalLightTextPrimary,
-  surface = MedicalLightSurface,
-  onSurface = MedicalLightTextPrimary,
-  surfaceVariant = MedicalLightSurfaceElevated,
-  onSurfaceVariant = MedicalLightTextSecondary,
-  outline = MedicalLightBorder,
-  outlineVariant = MedicalLightSurfaceHigh,
-  error = MedicalRed,
+  background = ArcoLightBg,
+  onBackground = ArcoLightTextPrimary,
+  surface = ArcoLightSurface,
+  onSurface = ArcoLightTextPrimary,
+  surfaceVariant = ArcoLightSurfaceElevated,
+  onSurfaceVariant = ArcoLightTextSecondary,
+  outline = ArcoLightBorder,
+  outlineVariant = ArcoLightBorderGold,
+  error = ArcoCrimson,
   onError = Color.White
 )
 
@@ -97,40 +99,42 @@ fun MyApplicationTheme(
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
-  val colorScheme = if (darkTheme) MinimalMedicalDarkColorScheme else MinimalMedicalLightColorScheme
+  val colorScheme = if (darkTheme) ArcoDarkColorScheme else ArcoLightColorScheme
   val medicalColors = if (darkTheme) {
     MedicalThemeColors(
       isDark = true,
-      background = MedicalDarkBg,
-      surface = MedicalDarkSurface,
-      surfaceElevated = MedicalDarkSurfaceElevated,
-      surfaceHigh = MedicalDarkSurfaceHigh,
-      border = MedicalDarkBorder,
-      textPrimary = MedicalDarkTextPrimary,
-      textSecondary = MedicalDarkTextSecondary,
-      textMuted = MedicalDarkTextMuted,
-      accentPrimary = MedicalCyan,
-      accentSecondary = MedicalTeal,
-      alertGreen = MedicalMint,
-      alertAmber = MedicalAmber,
-      alertRed = MedicalRed
+      background = ArcoDarkBg,
+      surface = ArcoDarkSurface,
+      surfaceElevated = ArcoDarkSurfaceElevated,
+      surfaceHigh = ArcoDarkSurfaceHigh,
+      border = ArcoDarkBorder,
+      borderGold = ArcoDarkBorderGold,
+      textPrimary = ArcoDarkTextPrimary,
+      textSecondary = ArcoDarkTextSecondary,
+      textMuted = ArcoDarkTextMuted,
+      accentPrimary = ArcoGold,
+      accentSecondary = ArcoBronze,
+      alertGreen = ArcoEmerald,
+      alertAmber = ArcoAmber,
+      alertRed = ArcoCrimson
     )
   } else {
     MedicalThemeColors(
       isDark = false,
-      background = MedicalLightBg,
-      surface = MedicalLightSurface,
-      surfaceElevated = MedicalLightSurfaceElevated,
-      surfaceHigh = MedicalLightSurfaceHigh,
-      border = MedicalLightBorder,
-      textPrimary = MedicalLightTextPrimary,
-      textSecondary = MedicalLightTextSecondary,
-      textMuted = MedicalLightTextMuted,
-      accentPrimary = MedicalTealDark,
-      accentSecondary = MedicalTeal,
-      alertGreen = MedicalMintDark,
-      alertAmber = MedicalAmber,
-      alertRed = MedicalRed
+      background = ArcoLightBg,
+      surface = ArcoLightSurface,
+      surfaceElevated = ArcoLightSurfaceElevated,
+      surfaceHigh = ArcoLightSurfaceHigh,
+      border = ArcoLightBorder,
+      borderGold = ArcoLightBorderGold,
+      textPrimary = ArcoLightTextPrimary,
+      textSecondary = ArcoLightTextSecondary,
+      textMuted = ArcoLightTextMuted,
+      accentPrimary = ArcoGoldDark,
+      accentSecondary = ArcoBronzeDark,
+      alertGreen = ArcoEmeraldDark,
+      alertAmber = ArcoAmber,
+      alertRed = ArcoCrimson
     )
   }
 

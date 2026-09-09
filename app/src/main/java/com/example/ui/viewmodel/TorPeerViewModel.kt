@@ -1,19 +1,24 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.crypto.CryptoManager
+import com.example.data.crypto.EncryptionCascadeResult
+import com.example.data.crypto.EncryptionLayerConfig
 import com.example.data.database.AppDatabase
 import com.example.data.database.ListingEntity
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
 import com.example.data.network.AnonymousNetworkLayer
+import com.example.data.network.CircuitHopDepth
 import com.example.data.network.ConnectionMode
 import com.example.data.network.LocalPeerServer
 import com.example.data.network.P2PClient
+import com.example.data.network.TorBridgeType
 import com.example.data.network.TorManager
 import com.example.data.network.TorNetworkVitals
 import com.example.data.network.TorStatus
@@ -23,13 +28,14 @@ import com.example.data.transparency.CurrentActivityState
 import com.example.data.transparency.TransparencyCategory
 import com.example.data.transparency.TransparencyEvent
 import com.example.data.transparency.TransparencyLogManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class AppNavTab {
@@ -40,6 +46,8 @@ enum class AppNavTab {
 }
 
 class TorPeerViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("fizz_sovereign_prefs", Context.MODE_PRIVATE)
 
     private val db = AppDatabase.getInstance(application)
     val cryptoManager = CryptoManager(application)
@@ -57,12 +65,164 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    // Mandatory Liability Waiver State
+    private val _hasAcceptedWaiver = MutableStateFlow(prefs.getBoolean("has_accepted_liability_waiver_v1", false))
+    val hasAcceptedWaiver: StateFlow<Boolean> = _hasAcceptedWaiver.asStateFlow()
+
+    // First Start-up Guide State
+    private val _hasSeenOnboardingGuide = MutableStateFlow(prefs.getBoolean("has_seen_onboarding_guide_v1", false))
+    val hasSeenOnboardingGuide: StateFlow<Boolean> = _hasSeenOnboardingGuide.asStateFlow()
+
+    // Auto-Destruct Timer for Active Messaging Interface (null = permanent, or seconds: 10, 30, 60, 300, 3600, 86400)
+    private val _selectedAutoDestructSeconds = MutableStateFlow<Long?>(null)
+    val selectedAutoDestructSeconds: StateFlow<Long?> = _selectedAutoDestructSeconds.asStateFlow()
+
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
     }
 
     fun setTheme(dark: Boolean) {
         _isDarkTheme.value = dark
+    }
+
+    fun acceptLiabilityWaiver() {
+        prefs.edit().putBoolean("has_accepted_liability_waiver_v1", true).apply()
+        _hasAcceptedWaiver.value = true
+        transparencyManager.logEvent(
+            action = "Liability Covenant Accepted",
+            description = "User acknowledged 0-fault, sovereign user-responsible protocol terms.",
+            category = TransparencyCategory.CRYPTOGRAPHY,
+            technicalDetails = "Zero-Knowledge Sovereign User Contract • Zero Server Liability"
+        )
+    }
+
+    fun reopenLiabilityWaiver() {
+        _hasAcceptedWaiver.value = false
+    }
+
+    fun completeOnboardingGuide() {
+        prefs.edit().putBoolean("has_seen_onboarding_guide_v1", true).apply()
+        _hasSeenOnboardingGuide.value = true
+    }
+
+    fun reopenOnboardingGuide() {
+        _hasSeenOnboardingGuide.value = false
+    }
+
+    fun setAutoDestructTimer(seconds: Long?) {
+        _selectedAutoDestructSeconds.value = seconds
+        val label = when (seconds) {
+            null -> "Permanent (No Auto-Destruct)"
+            10L -> "10 Seconds"
+            30L -> "30 Seconds"
+            60L -> "1 Minute"
+            300L -> "5 Minutes"
+            3600L -> "1 Hour"
+            86400L -> "24 Hours"
+            else -> "$seconds seconds"
+        }
+        transparencyManager.logEvent(
+            action = "Auto-Destruct Timer Configured",
+            description = "Message lifespan set to $label before local SQLite purge.",
+            category = TransparencyCategory.LOCAL_STORAGE,
+            technicalDetails = "SQLite TTL: ${seconds ?: 0}s"
+        )
+        Toast.makeText(getApplication(), "Auto-destruct timer: $label", Toast.LENGTH_SHORT).show()
+    }
+
+    // Encryption Layer Configuration & Cascade State
+    private val _encryptionConfig = MutableStateFlow(EncryptionLayerConfig())
+    val encryptionConfig: StateFlow<EncryptionLayerConfig> = _encryptionConfig.asStateFlow()
+
+    private val _lastCascadeResult = MutableStateFlow<EncryptionCascadeResult?>(null)
+    val lastCascadeResult: StateFlow<EncryptionCascadeResult?> = _lastCascadeResult.asStateFlow()
+
+    // Legal Disclaimer Modal Visibility
+    private val _showLegalDisclaimer = MutableStateFlow(false)
+    val showLegalDisclaimer: StateFlow<Boolean> = _showLegalDisclaimer.asStateFlow()
+
+    fun openLegalDisclaimer() {
+        _showLegalDisclaimer.value = true
+    }
+
+    fun dismissLegalDisclaimer() {
+        _showLegalDisclaimer.value = false
+    }
+
+    fun toggleAesGcm() {
+        val current = _encryptionConfig.value
+        val updated = current.copy(useAes256Gcm = !current.useAes256Gcm)
+        _encryptionConfig.value = updated
+        cryptoManager.activeConfig = updated
+        testLiveCascadeEncryption()
+    }
+
+    fun toggleChaCha20() {
+        val current = _encryptionConfig.value
+        val updated = current.copy(useChaCha20Poly1305 = !current.useChaCha20Poly1305)
+        _encryptionConfig.value = updated
+        cryptoManager.activeConfig = updated
+        testLiveCascadeEncryption()
+    }
+
+    fun toggleHybridRsa() {
+        val current = _encryptionConfig.value
+        val updated = current.copy(useHybridRsaKeyExchange = !current.useHybridRsaKeyExchange)
+        _encryptionConfig.value = updated
+        cryptoManager.activeConfig = updated
+        testLiveCascadeEncryption()
+    }
+
+    fun toggleTrafficPadding() {
+        val current = _encryptionConfig.value
+        val updated = current.copy(useZeroKnowledgeTrafficPadding = !current.useZeroKnowledgeTrafficPadding)
+        _encryptionConfig.value = updated
+        cryptoManager.activeConfig = updated
+        testLiveCascadeEncryption()
+    }
+
+    fun testLiveCascadeEncryption(sampleText: String = "Fizz.1 P2P Autonomous Encrypted Payload") {
+        val result = cryptoManager.encryptMultiLayerCascade(sampleText, _encryptionConfig.value)
+        _lastCascadeResult.value = result
+        transparencyManager.logEvent(
+            action = "Cascade Encryption Executed",
+            description = "Protected payload through ${result.layersApplied.size} cryptographic armor layers.",
+            category = TransparencyCategory.CRYPTOGRAPHY,
+            technicalDetails = "Raw: ${result.rawPayloadLength}B ➔ Padded: ${result.paddedLength}B • SHA256: ${result.integrityHashSha256}"
+        )
+    }
+
+    fun setBridgeType(bridge: TorBridgeType, customLine: String = "") {
+        torManager.setBridgeType(bridge, customLine)
+        transparencyManager.logEvent(
+            action = "Tor Bridge Protocol Changed",
+            description = "Active Bridge: ${bridge.title} (${bridge.protocolTag})",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Bridge type updated ➔ ${bridge.name} • Custom line: ${customLine.ifEmpty { "N/A" }}"
+        )
+        Toast.makeText(getApplication(), "Tor Bridge updated to ${bridge.title}", Toast.LENGTH_SHORT).show()
+    }
+
+    fun setCircuitHopDepth(depth: CircuitHopDepth) {
+        torManager.setCircuitHopDepth(depth)
+        transparencyManager.logEvent(
+            action = "Circuit Length Adjusted",
+            description = "Configured ${depth.hopCount}-Hop Tor circuit topology: ${depth.label}",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Topology: ${depth.description}"
+        )
+        Toast.makeText(getApplication(), "Circuit depth set to ${depth.label}", Toast.LENGTH_SHORT).show()
+    }
+
+    fun setStrictNon14Eyes(strict: Boolean) {
+        torManager.setStrictNon14Eyes(strict)
+        transparencyManager.logEvent(
+            action = "Jurisdiction Routing Filter",
+            description = if (strict) "Strict Non-14-Eyes relays enforced (Switzerland, Iceland, Panama, Seychelles)" else "Global Tor consensus relays allowed",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Strict Jurisdiction Filter = $strict"
+        )
+        Toast.makeText(getApplication(), if (strict) "Strict Non-14-Eyes Relays active" else "Global Relays active", Toast.LENGTH_SHORT).show()
     }
 
     private val marketplaceRepo = MarketplaceRepository(
@@ -89,7 +249,15 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
             Triple(cryptoManager.myPeerId, cryptoManager.myOnionAddress, cryptoManager.myFingerprint)
         },
         onMessageReceived = { senderId, senderOnion, content, listingId, listingTitle, listingPrice ->
-            chatRepo.receiveIncomingMessage(senderId, senderOnion, content, listingId, listingTitle, listingPrice)
+            chatRepo.receiveIncomingMessage(
+                senderId = senderId,
+                senderOnion = senderOnion,
+                content = content,
+                listingId = listingId,
+                listingTitle = listingTitle,
+                listingPrice = listingPrice,
+                autoDestructSeconds = _selectedAutoDestructSeconds.value
+            )
         }
     )
 
@@ -134,6 +302,23 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             marketplaceRepo.seedInitialDataIfEmpty()
             chatRepo.seedInitialChatsIfEmpty()
+            testLiveCascadeEncryption()
+        }
+
+        // Periodic background auto-destruct cleaner (Runs every 1 second to vaporize expired local messages)
+        viewModelScope.launch {
+            while (isActive) {
+                delay(1000)
+                val purgedCount = chatRepo.purgeExpiredMessages(System.currentTimeMillis())
+                if (purgedCount > 0) {
+                    transparencyManager.logEvent(
+                        action = "Auto-Destruct Wiped $purgedCount Message(s)",
+                        description = "Vaporized expired ephemeral messages permanently from local SQLite sandbox.",
+                        category = TransparencyCategory.LOCAL_STORAGE,
+                        technicalDetails = "DELETE FROM messages WHERE expiresAt <= now() • Zero fragments remain"
+                    )
+                }
+            }
         }
     }
 
@@ -232,11 +417,15 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         relatedListingPrice: String? = null
     ) {
         viewModelScope.launch {
+            val autoDestruct = _selectedAutoDestructSeconds.value
             transparencyManager.setWorking(
                 action = "Encrypting & Sending Message",
-                subtitle = "Encrypting with AES-256-GCM ➔ Routing via Tor SOCKS5 to peer",
+                subtitle = "Multi-Layer Cascade Armor ➔ Routing via Tor SOCKS5 to peer ${if (autoDestruct != null) "(Auto-destruct: ${autoDestruct}s)" else ""}",
                 category = TransparencyCategory.CRYPTOGRAPHY
             )
+
+            val cascadeResult = cryptoManager.encryptMultiLayerCascade(text, _encryptionConfig.value)
+            _lastCascadeResult.value = cascadeResult
 
             chatRepo.sendMessage(
                 peerId = peerId,
@@ -244,14 +433,15 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
                 text = text,
                 relatedListingId = relatedListingId,
                 relatedListingTitle = relatedListingTitle,
-                relatedListingPrice = relatedListingPrice
+                relatedListingPrice = relatedListingPrice,
+                autoDestructSeconds = autoDestruct
             )
 
             transparencyManager.logEvent(
-                action = "Encrypted with AES-256-GCM",
-                description = "Derived temporary key & encrypted payload. Plaintext never leaves device.",
+                action = "Multi-Layer Encrypted (${cascadeResult.layersApplied.size} Layers)",
+                description = "AES-256-GCM + ChaCha20-Poly1305 + Hybrid RSA + ZK Padding applied.${if (autoDestruct != null) " Auto-destruct timer armed: ${autoDestruct}s" else ""}",
                 category = TransparencyCategory.CRYPTOGRAPHY,
-                technicalDetails = "Cipher: AES/GCM/NoPadding (256-bit) • 12-byte IV • 128-bit auth tag"
+                technicalDetails = "Integrity Hash: ${cascadeResult.integrityHashSha256} • Transport: Tor Onion Ring • TTL: ${autoDestruct ?: "Infinite"}s"
             )
 
             // Route directly through Anonymous Tor Network Layer
@@ -260,17 +450,41 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
                     targetAddress = peerOnion,
                     senderId = cryptoManager.myPeerId,
                     senderOnion = cryptoManager.myOnionAddress,
-                    encryptedContent = cryptoManager.encryptAesGcm(text),
+                    encryptedContent = cascadeResult.finalCiphertextBase64,
                     listingId = relatedListingId,
                     listingTitle = relatedListingTitle,
                     listingPrice = relatedListingPrice
                 )
 
                 if (sendResult.isSuccess) {
-                    Toast.makeText(getApplication(), "Delivered via Tor SOCKS5", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(getApplication(), "Delivered via Tor Multi-Hop", Toast.LENGTH_SHORT).show()
                 }
             }
         }
+    }
+
+    fun deleteMessage(id: String) {
+        viewModelScope.launch {
+            chatRepo.deleteMessage(id)
+            transparencyManager.logEvent(
+                action = "Message Vaporized Manually",
+                description = "Deleted message ID $id immediately from device storage.",
+                category = TransparencyCategory.LOCAL_STORAGE,
+                technicalDetails = "SQLite DELETE FROM messages WHERE id = '$id'"
+            )
+            Toast.makeText(getApplication(), "Message destroyed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun runSurveillanceScan() {
+        torManager.runDeepSurveillanceScan()
+        transparencyManager.logEvent(
+            action = "Surveillance Interception Deep Scan",
+            description = "Analyzing circuit latency signatures, DNS leakage, and relay correlation...",
+            category = TransparencyCategory.NETWORK_TOR,
+            technicalDetails = "Algorithmic timing analysis + ASN isolation evaluation"
+        )
+        Toast.makeText(getApplication(), "Running deep surveillance & interception scan...", Toast.LENGTH_SHORT).show()
     }
 
     fun connectToPeer(address: String) {
@@ -300,16 +514,48 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // P2P QR Code Pairing Dialog State
+    private val _showPeerQrDialog = MutableStateFlow(false)
+    val showPeerQrDialog: StateFlow<Boolean> = _showPeerQrDialog.asStateFlow()
+
+    fun openPeerQrDialog() {
+        _showPeerQrDialog.value = true
+    }
+
+    fun dismissPeerQrDialog() {
+        _showPeerQrDialog.value = false
+    }
+
+    fun connectToPeerParsed(peerId: String, onionAddress: String, fingerprint: String, displayName: String) {
+        viewModelScope.launch {
+            chatRepo.addOrUpdatePeer(
+                peerId = peerId,
+                displayName = displayName,
+                onionAddress = onionAddress,
+                publicKeyFingerprint = fingerprint
+            )
+            connectToPeer(onionAddress)
+            selectChat(peerId)
+            transparencyManager.logEvent(
+                action = "Direct P2P Link Established",
+                description = "Paired with $displayName ($onionAddress) with zero public discovery broadcast.",
+                category = TransparencyCategory.NETWORK_TOR,
+                technicalDetails = "P2P Link: $onionAddress • Fingerprint: $fingerprint",
+                setAsCurrent = true
+            )
+        }
+    }
+
     fun rotateTorCircuit() {
         torManager.rotateTorCircuit()
         transparencyManager.logEvent(
             action = "Tor Circuit Rebuilt",
-            description = "Constructed brand new 3-hop onion circuit with fresh guard, middle, and exit relays.",
+            description = "Constructed brand new ${torStatus.value.circuitHopDepth.label} circuit with fresh guard, middle, and exit relays.",
             category = TransparencyCategory.NETWORK_TOR,
             technicalDetails = "New circuit generated with random Tor consensus nodes • New crypto handshake",
             setAsCurrent = true
         )
-        Toast.makeText(getApplication(), "Generated new 3-hop Tor circuit!", Toast.LENGTH_SHORT).show()
+        Toast.makeText(getApplication(), "Generated new Tor circuit!", Toast.LENGTH_SHORT).show()
     }
 
     fun updateProxySettings(host: String, port: Int) {

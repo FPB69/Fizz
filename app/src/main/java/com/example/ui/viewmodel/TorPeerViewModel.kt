@@ -13,6 +13,7 @@ import com.example.data.database.AppDatabase
 import com.example.data.database.ListingEntity
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
+import com.example.data.database.TalkRequestEntity
 import com.example.data.network.AnonymousNetworkLayer
 import com.example.data.network.CircuitHopDepth
 import com.example.data.network.ConnectionMode
@@ -250,6 +251,7 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     private val chatRepo = ChatRepository(
         messageDao = db.messageDao(),
         peerDao = db.peerContactDao(),
+        talkRequestDao = db.talkRequestDao(),
         cryptoManager = cryptoManager
     )
 
@@ -292,6 +294,15 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val peers: StateFlow<List<PeerContactEntity>> = chatRepo.allPeers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val connectedPeers: StateFlow<List<PeerContactEntity>> = chatRepo.connectedPeers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val talkRequests: StateFlow<List<TalkRequestEntity>> = chatRepo.allTalkRequests
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val pendingIncomingRequests: StateFlow<List<TalkRequestEntity>> = chatRepo.pendingIncomingRequests
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allMessages: StateFlow<List<MessageEntity>> = chatRepo.allMessages
@@ -667,6 +678,77 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearTransparencyLog() {
         transparencyManager.clearLog()
+    }
+
+    fun sendTalkRequest(
+        peerId: String,
+        peerAlias: String,
+        peerOnion: String,
+        listingId: String? = null,
+        listingTitle: String? = null,
+        listingPrice: String? = null,
+        initialMessage: String = "Hi, I would like to connect regarding your listing."
+    ) {
+        viewModelScope.launch {
+            chatRepo.sendTalkRequest(
+                peerId = peerId,
+                peerAlias = peerAlias,
+                peerOnion = peerOnion,
+                listingId = listingId,
+                listingTitle = listingTitle,
+                listingPrice = listingPrice,
+                initialMessage = initialMessage
+            )
+            transparencyManager.logEvent(
+                action = "Talk Request Sent",
+                description = "Sent P2P connection request to $peerAlias ($peerOnion) via Tor.",
+                category = TransparencyCategory.NETWORK_TOR,
+                technicalDetails = "Handshake: PENDING • Peer: $peerOnion",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Talk request sent to seller!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun acceptTalkRequest(requestId: String) {
+        viewModelScope.launch {
+            chatRepo.acceptTalkRequest(requestId)
+            transparencyManager.logEvent(
+                action = "Talk Request Accepted",
+                description = "Approved P2P session. Encrypted direct channel opened.",
+                category = TransparencyCategory.CRYPTOGRAPHY,
+                technicalDetails = "Session status: CONNECTED • Local device storage active",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Connected to peer! Chat ready.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun declineTalkRequest(requestId: String) {
+        viewModelScope.launch {
+            chatRepo.declineTalkRequest(requestId)
+            transparencyManager.logEvent(
+                action = "Talk Request Declined",
+                description = "Declined P2P talk request.",
+                category = TransparencyCategory.NETWORK_TOR,
+                technicalDetails = "Session status: DECLINED",
+                setAsCurrent = true
+            )
+            Toast.makeText(getApplication(), "Talk request declined", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun verifyPeer(peerId: String, verified: Boolean) {
+        viewModelScope.launch {
+            chatRepo.verifyPeer(peerId, verified)
+            transparencyManager.logEvent(
+                action = if (verified) "Peer Fingerprint Verified" else "Peer Unverified",
+                description = "Updated cryptographic verification state for peer $peerId",
+                category = TransparencyCategory.CRYPTOGRAPHY,
+                technicalDetails = "isVerified = $verified",
+                setAsCurrent = true
+            )
+        }
     }
 
     fun panicWipeAllData() {

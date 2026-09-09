@@ -22,12 +22,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLink
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -35,10 +38,12 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,10 +54,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.data.database.ListingEntity
 import com.example.ui.components.ListingCard
 import com.example.ui.components.PeerQrConnectionDialog
 import com.example.ui.components.TorStatusBadge
@@ -67,19 +74,29 @@ fun MarketplaceScreen(
 ) {
     val theme = LocalMedicalTheme.current
     val allListings by viewModel.allListings.collectAsStateWithLifecycle()
+    val peers by viewModel.peers.collectAsStateWithLifecycle()
     val torStatus by viewModel.torStatus.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
     val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val showPeerQrDialog by viewModel.showPeerQrDialog.collectAsStateWithLifecycle()
 
-    val categories = listOf("All", "Hardware", "Privacy Tools", "Physical Goods", "Digital")
+    var contactTargetListing by remember { mutableStateOf<ListingEntity?>(null) }
+    var talkRequestMessage by remember { mutableStateOf("") }
+
+    // Dynamic category list combining defaults + all custom categories from listings
+    val categories = remember(allListings) {
+        val standardDefaults = listOf("Hardware", "Software", "Security", "Physical Goods", "Services")
+        val customFromListings = allListings.map { it.category.trim() }.filter { it.isNotBlank() }
+        (listOf("All") + standardDefaults + customFromListings).distinct()
+    }
 
     val filteredListings = allListings.filter { listing ->
         val matchesCategory = selectedCategory == "All" || listing.category.equals(selectedCategory, ignoreCase = true)
         val matchesSearch = searchQuery.isEmpty() ||
                 listing.title.contains(searchQuery, ignoreCase = true) ||
-                listing.description.contains(searchQuery, ignoreCase = true)
+                listing.description.contains(searchQuery, ignoreCase = true) ||
+                listing.category.contains(searchQuery, ignoreCase = true)
         matchesCategory && matchesSearch
     }
 
@@ -122,7 +139,7 @@ fun MarketplaceScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Fizz",
+                                text = "Fizz 1.2",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp,
@@ -185,7 +202,7 @@ fun MarketplaceScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("Search listings or peers...", fontSize = 12.sp, color = theme.textMuted) },
+                        placeholder = { Text("Search listings, custom categories...", fontSize = 12.sp, color = theme.textMuted) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -241,7 +258,7 @@ fun MarketplaceScreen(
                 }
             }
 
-            // Category Filter Chips
+            // Category Filter Chips (Standard + Custom Categories)
             item {
                 Row(
                     modifier = Modifier
@@ -307,12 +324,140 @@ fun MarketplaceScreen(
                     ListingCard(
                         listing = listing,
                         onInquireOrBuy = { selectedListing ->
-                            viewModel.selectChat(selectedListing.sellerPeerId)
+                            val peer = peers.find { it.peerId == selectedListing.sellerPeerId }
+                            if (peer != null && peer.connectionStatus == "CONNECTED") {
+                                viewModel.selectChat(selectedListing.sellerPeerId)
+                            } else {
+                                talkRequestMessage = "Hi, I'm interested in '${selectedListing.title}' (${selectedListing.price} ${selectedListing.currency})."
+                                contactTargetListing = selectedListing
+                            }
                         }
                     )
                 }
             }
         }
+    }
+
+    // Contact Seller / Talk Request Dialog
+    if (contactTargetListing != null) {
+        val target = contactTargetListing!!
+        AlertDialog(
+            onDismissRequest = { contactTargetListing = null },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(theme.accentPrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = theme.accentPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Contact Seller",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = theme.textPrimary
+                    )
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "To establish a private P2P channel, send a talk request. Once accepted by the seller, encrypted messaging activates.",
+                        fontSize = 12.sp,
+                        color = theme.textSecondary,
+                        lineHeight = 16.sp
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(theme.surface)
+                            .border(1.dp, theme.border, RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = target.title,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = theme.textPrimary
+                            )
+                            Text(
+                                text = "${target.price} ${target.currency} • Category: ${target.category}",
+                                fontSize = 11.5.sp,
+                                color = theme.accentPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Seller: ${target.sellerOnion}",
+                                fontSize = 10.sp,
+                                color = theme.textMuted,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = talkRequestMessage,
+                        onValueChange = { talkRequestMessage = it },
+                        label = { Text("Introductory Note", fontSize = 11.sp) },
+                        placeholder = { Text("Write a message to seller...", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        maxLines = 3,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = theme.accentPrimary,
+                            unfocusedBorderColor = theme.border,
+                            focusedTextColor = theme.textPrimary,
+                            unfocusedTextColor = theme.textPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.sendTalkRequest(
+                            peerId = target.sellerPeerId,
+                            peerAlias = target.sellerOnion.take(14) + "...",
+                            peerOnion = target.sellerOnion,
+                            listingId = target.id,
+                            listingTitle = target.title,
+                            listingPrice = "${target.price} ${target.currency}",
+                            initialMessage = talkRequestMessage
+                        )
+                        contactTargetListing = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = theme.accentPrimary,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Send Talk Request", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { contactTargetListing = null }) {
+                    Text("Cancel", fontSize = 12.sp, color = theme.textMuted)
+                }
+            },
+            containerColor = theme.surfaceElevated,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     // P2P QR Code Pairing Dialog

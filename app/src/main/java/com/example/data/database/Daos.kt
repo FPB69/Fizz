@@ -69,6 +69,9 @@ interface PeerContactDao {
     @Query("SELECT * FROM peer_contacts ORDER BY lastSeen DESC")
     fun getAllPeers(): Flow<List<PeerContactEntity>>
 
+    @Query("SELECT * FROM peer_contacts WHERE connectionStatus = 'CONNECTED' ORDER BY lastSeen DESC")
+    fun getConnectedPeers(): Flow<List<PeerContactEntity>>
+
     @Query("SELECT * FROM peer_contacts WHERE peerId = :peerId LIMIT 1")
     suspend fun getPeer(peerId: String): PeerContactEntity?
 
@@ -78,6 +81,9 @@ interface PeerContactDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPeers(peers: List<PeerContactEntity>)
 
+    @Query("UPDATE peer_contacts SET connectionStatus = :status WHERE peerId = :peerId")
+    suspend fun updateConnectionStatus(peerId: String, status: String)
+
     @Query("UPDATE peer_contacts SET isVerified = :verified WHERE peerId = :peerId")
     suspend fun updateVerification(peerId: String, verified: Boolean)
 
@@ -85,5 +91,32 @@ interface PeerContactDao {
     suspend fun deletePeer(peerId: String)
 
     @Query("DELETE FROM peer_contacts")
+    suspend fun clearAll()
+}
+
+@Dao
+interface TalkRequestDao {
+    @Query("SELECT * FROM talk_requests ORDER BY timestamp DESC")
+    fun getAllTalkRequests(): Flow<List<TalkRequestEntity>>
+
+    @Query("SELECT * FROM talk_requests WHERE status = 'PENDING' AND isIncoming = 1 ORDER BY timestamp DESC")
+    fun getPendingIncomingRequests(): Flow<List<TalkRequestEntity>>
+
+    @Query("SELECT * FROM talk_requests WHERE peerId = :peerId ORDER BY timestamp DESC LIMIT 1")
+    suspend fun getLatestRequestForPeer(peerId: String): TalkRequestEntity?
+
+    @Query("SELECT * FROM talk_requests WHERE id = :id LIMIT 1")
+    suspend fun getRequestById(id: String): TalkRequestEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertRequest(request: TalkRequestEntity)
+
+    @Query("UPDATE talk_requests SET status = :status WHERE id = :id")
+    suspend fun updateStatus(id: String, status: String)
+
+    @Query("DELETE FROM talk_requests WHERE id = :id")
+    suspend fun deleteRequest(id: String)
+
+    @Query("DELETE FROM talk_requests")
     suspend fun clearAll()
 }

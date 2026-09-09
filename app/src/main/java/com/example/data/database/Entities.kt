@@ -50,5 +50,22 @@ data class PeerContactEntity(
     val lastSeen: Long = System.currentTimeMillis(),
     val isOnline: Boolean = true,
     val circuitHops: Int = 3,
-    val isVerified: Boolean = false
+    val isVerified: Boolean = false,
+    val connectionStatus: String = "CONNECTED" // "NOT_CONNECTED", "PENDING_SENT", "PENDING_RECEIVED", "CONNECTED"
+)
+
+@Entity(tableName = "talk_requests")
+data class TalkRequestEntity(
+    @PrimaryKey
+    val id: String,
+    val peerId: String,
+    val peerAlias: String,
+    val peerOnion: String,
+    val listingId: String? = null,
+    val listingTitle: String? = null,
+    val listingPrice: String? = null,
+    val isIncoming: Boolean, // true if received, false if sent by me
+    val status: String = "PENDING", // "PENDING", "ACCEPTED", "DECLINED"
+    val initialMessage: String = "",
+    val timestamp: Long = System.currentTimeMillis()
 )

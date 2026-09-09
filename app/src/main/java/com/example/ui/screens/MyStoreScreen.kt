@@ -94,6 +94,7 @@ fun MyStoreScreen(
     var newPrice by remember { mutableStateOf("") }
     var newCurrency by remember { mutableStateOf("XMR") }
     var newCategory by remember { mutableStateOf("Hardware") }
+    var customCategoryText by remember { mutableStateOf("") }
     var selectedPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
@@ -111,6 +112,8 @@ fun MyStoreScreen(
                     newTitle = ""
                     newDesc = ""
                     newPrice = ""
+                    newCategory = "Hardware"
+                    customCategoryText = ""
                     selectedPhotoUri = null
                     showCreateDialog = true
                 },
@@ -504,7 +507,7 @@ fun MyStoreScreen(
 
                     // Category Selector
                     var catExpanded by remember { mutableStateOf(false) }
-                    val categories = listOf("Hardware", "Privacy Tools", "Physical Goods", "Digital", "Services")
+                    val categories = listOf("Hardware", "Privacy Tools", "Physical Goods", "Digital", "Services", "+ Custom Category...")
 
                     ExposedDropdownMenuBox(
                         expanded = catExpanded,
@@ -543,6 +546,26 @@ fun MyStoreScreen(
                                 )
                             }
                         }
+                    }
+
+                    if (newCategory == "+ Custom Category...") {
+                        OutlinedTextField(
+                            value = customCategoryText,
+                            onValueChange = { customCategoryText = it },
+                            label = { Text("Custom Category Name", color = theme.textSecondary) },
+                            placeholder = { Text("e.g. Mesh Radio, Security Token...", color = theme.textMuted) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = theme.surfaceElevated,
+                                unfocusedContainerColor = theme.surfaceElevated,
+                                focusedBorderColor = theme.accentPrimary,
+                                unfocusedBorderColor = theme.border,
+                                focusedTextColor = theme.textPrimary,
+                                unfocusedTextColor = theme.textPrimary
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     // Description
@@ -591,12 +614,15 @@ fun MyStoreScreen(
                 Button(
                     onClick = {
                         if (newTitle.isNotBlank() && newPrice.isNotBlank()) {
+                            val resolvedCat = if (newCategory == "+ Custom Category...") {
+                                customCategoryText.trim().ifEmpty { "Custom" }
+                            } else newCategory
                             viewModel.createListing(
                                 title = newTitle.trim(),
                                 description = newDesc.trim().ifEmpty { "Fully local item hosted peer-to-peer on owner's phone." },
                                 price = newPrice.trim(),
                                 currency = newCurrency,
-                                category = newCategory,
+                                category = resolvedCat,
                                 imageUri = selectedPhotoUri
                             )
                             showCreateDialog = false

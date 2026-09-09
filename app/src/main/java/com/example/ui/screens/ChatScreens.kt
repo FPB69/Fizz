@@ -28,17 +28,24 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AutoDelete
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Handshake
+import androidx.compose.material.icons.filled.HourglassTop
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -49,15 +56,21 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -75,6 +88,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactEntity
+import com.example.data.database.TalkRequestEntity
 import com.example.ui.components.PeerQrConnectionDialog
 import com.example.ui.theme.LocalMedicalTheme
 import com.example.ui.viewmodel.TorPeerViewModel
@@ -91,9 +105,15 @@ fun ChatListScreen(
     val theme = LocalMedicalTheme.current
     val peers by viewModel.peers.collectAsStateWithLifecycle()
     val allMessages by viewModel.allMessages.collectAsStateWithLifecycle()
+    val talkRequests by viewModel.talkRequests.collectAsStateWithLifecycle()
+    val pendingIncomingRequests by viewModel.pendingIncomingRequests.collectAsStateWithLifecycle()
     val showPeerQrDialog by viewModel.showPeerQrDialog.collectAsStateWithLifecycle()
+
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var showNewChatDialog by remember { mutableStateOf(false) }
     var newPeerOnionInput by remember { mutableStateOf("") }
+
+    val connectedPeers = peers.filter { it.connectionStatus == "CONNECTED" }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -137,7 +157,7 @@ fun ChatListScreen(
                         color = theme.textPrimary
                     )
                     Text(
-                        text = "Encrypted direct messages",
+                        text = "Saved on your device & peer device only",
                         fontSize = 11.5.sp,
                         color = theme.textSecondary
                     )
@@ -191,47 +211,158 @@ fun ChatListScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            if (peers.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(bottom = 60.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Security,
-                            contentDescription = null,
-                            tint = theme.textMuted,
-                            modifier = Modifier.size(48.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+            // Tab Row: Direct Chats vs Talk Requests
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = theme.surfaceElevated,
+                contentColor = theme.accentPrimary,
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                        color = theme.accentPrimary
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .border(1.dp, theme.border, RoundedCornerShape(12.dp))
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = {
                         Text(
-                            text = "No Peer Conversations",
-                            color = theme.textPrimary,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
+                            text = "Active Chats (${connectedPeers.size})",
+                            fontSize = 12.sp,
+                            fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selectedTabIndex == 0) theme.accentPrimary else theme.textSecondary
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Start a direct conversation with any Tor Onion peer address",
-                            color = theme.textSecondary,
-                            fontSize = 12.sp
-                        )
+                    }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Talk Requests",
+                                fontSize = 12.sp,
+                                fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selectedTabIndex == 1) theme.accentPrimary else theme.textSecondary
+                            )
+                            if (pendingIncomingRequests.isNotEmpty()) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .background(theme.alertAmber)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "${pendingIncomingRequests.size}",
+                                        color = Color.Black,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (selectedTabIndex == 0) {
+                // Active Chats List
+                if (connectedPeers.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = theme.textMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "No Connected Peers Yet",
+                                color = theme.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Send a talk request to a seller in Market or connect via QR",
+                                color = theme.textSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(connectedPeers, key = { it.peerId }) { peer ->
+                            val lastMessage = allMessages.firstOrNull { it.peerId == peer.peerId }
+                            PeerChatItem(
+                                peer = peer,
+                                lastMessage = lastMessage,
+                                onClick = { viewModel.selectChat(peer.peerId) }
+                            )
+                        }
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(peers, key = { it.peerId }) { peer ->
-                        val lastMessage = allMessages.firstOrNull { it.peerId == peer.peerId }
-                        PeerChatItem(
-                            peer = peer,
-                            lastMessage = lastMessage,
-                            onClick = { viewModel.selectChat(peer.peerId) }
-                        )
+                // Talk Requests List
+                if (talkRequests.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 60.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Handshake,
+                                contentDescription = null,
+                                tint = theme.textMuted,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Text(
+                                text = "No Talk Requests",
+                                color = theme.textPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Contact sellers in the marketplace to initiate P2P handshakes",
+                                color = theme.textSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(talkRequests, key = { it.id }) { request ->
+                            TalkRequestItem(
+                                request = request,
+                                onAccept = { viewModel.acceptTalkRequest(request.id) },
+                                onDecline = { viewModel.declineTalkRequest(request.id) },
+                                onOpenChat = { viewModel.selectChat(request.peerId) }
+                            )
+                        }
                     }
                 }
             }
@@ -277,12 +408,12 @@ fun ChatListScreen(
                         val input = newPeerOnionInput.trim()
                         if (input.isNotBlank()) {
                             val peerId = "peer_" + input.take(10).replace(".", "_")
-                            viewModel.sendMessage(
+                            viewModel.sendTalkRequest(
                                 peerId = peerId,
+                                peerAlias = input.take(14) + "...",
                                 peerOnion = input,
-                                text = "Hello! Initializing P2P encrypted session via Tor."
+                                initialMessage = "Hello! Initializing P2P encrypted session via Tor."
                             )
-                            viewModel.selectChat(peerId)
                             showNewChatDialog = false
                         }
                     },
@@ -292,7 +423,7 @@ fun ChatListScreen(
                     ),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Connect & Chat", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                    Text("Send Talk Request", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
                 }
             },
             dismissButton = {
@@ -302,22 +433,195 @@ fun ChatListScreen(
             }
         )
     }
+}
 
-    if (showPeerQrDialog) {
-        PeerQrConnectionDialog(
-            myPeerId = viewModel.cryptoManager.myPeerId,
-            myOnionAddress = viewModel.cryptoManager.myOnionAddress,
-            myFingerprint = viewModel.cryptoManager.myFingerprint,
-            onConnectToPeer = { peer ->
-                viewModel.connectToPeerParsed(
-                    peerId = peer.peerId,
-                    onionAddress = peer.onionAddress,
-                    fingerprint = peer.fingerprint,
-                    displayName = peer.displayName
+@Composable
+fun TalkRequestItem(
+    request: TalkRequestEntity,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
+    onOpenChat: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val theme = LocalMedicalTheme.current
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = theme.surface),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(1.dp, theme.border, RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Top Row: Type & Status
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(if (request.isIncoming) theme.accentPrimary.copy(alpha = 0.15f) else theme.surfaceElevated),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (request.isIncoming) Icons.Default.Handshake else Icons.Default.HourglassTop,
+                            contentDescription = null,
+                            tint = if (request.isIncoming) theme.accentPrimary else theme.textMuted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = if (request.isIncoming) "Incoming Talk Request" else "Sent Talk Request",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.textPrimary
+                        )
+                        Text(
+                            text = request.peerAlias,
+                            fontSize = 11.sp,
+                            color = theme.textSecondary
+                        )
+                    }
+                }
+
+                // Status Badge
+                when (request.status) {
+                    "PENDING" -> {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(theme.alertAmber.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = if (request.isIncoming) "Awaiting Your Decision" else "Pending Acceptance",
+                                color = theme.alertAmber,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    "ACCEPTED" -> {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(theme.alertGreen.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Connected",
+                                color = theme.alertGreen,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    else -> {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(theme.alertRed.copy(alpha = 0.15f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Declined",
+                                color = theme.alertRed,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Attached Listing Details (if any)
+            if (!request.listingTitle.isNullOrEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(theme.surfaceElevated)
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingBag,
+                        contentDescription = null,
+                        tint = theme.accentPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Regarding: ${request.listingTitle} (${request.listingPrice ?: ""})",
+                        fontSize = 11.sp,
+                        color = theme.textPrimary,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Initial Note
+            if (request.initialMessage.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "\"${request.initialMessage}\"",
+                    fontSize = 12.sp,
+                    color = theme.textSecondary,
+                    lineHeight = 16.sp
                 )
-            },
-            onDismiss = { viewModel.dismissPeerQrDialog() }
-        )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action Buttons
+            if (request.status == "PENDING" && request.isIncoming) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDecline,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Decline", fontSize = 11.5.sp)
+                    }
+
+                    Button(
+                        onClick = onAccept,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = theme.alertGreen, contentColor = Color.White),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Accept Talk", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else if (request.status == "ACCEPTED") {
+                Button(
+                    onClick = onOpenChat,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accentPrimary, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.Chat, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Open Encrypted Chat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 }
 
@@ -325,26 +629,27 @@ fun ChatListScreen(
 fun PeerChatItem(
     peer: PeerContactEntity,
     lastMessage: MessageEntity?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val theme = LocalMedicalTheme.current
 
     Card(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = theme.surface),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, theme.border, RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .border(1.dp, theme.border, RoundedCornerShape(16.dp))
+            .clickable { onClick() }
             .testTag("peer_item_${peer.peerId}")
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Peer Avatar with medical initial circle
+            // Node Avatar / Letter
             Box(
                 modifier = Modifier
                     .size(42.dp)
@@ -517,7 +822,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = theme.textMuted, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 10 Seconds (Ultra-Ephemeral)", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("10 Seconds (Ultra-Ephemeral)", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(10)
                                     showTimerMenu = false
@@ -525,7 +830,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 30 Seconds", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("30 Seconds", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(30)
                                     showTimerMenu = false
@@ -533,7 +838,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 1 Minute", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("1 Minute", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(60)
                                     showTimerMenu = false
@@ -541,7 +846,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 5 Minutes", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("5 Minutes", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(300)
                                     showTimerMenu = false
@@ -549,7 +854,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 1 Hour", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("1 Hour", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(3600)
                                     showTimerMenu = false
@@ -557,7 +862,7 @@ fun ChatConversationScreen(
                                 leadingIcon = { Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(16.dp)) }
                             )
                             DropdownMenuItem(
-                                text = { Text("🔥 24 Hours", color = theme.alertAmber, fontSize = 12.sp) },
+                                text = { Text("24 Hours", color = theme.alertAmber, fontSize = 12.sp) },
                                 onClick = {
                                     viewModel.setAutoDestructTimer(86400)
                                     showTimerMenu = false
@@ -642,7 +947,7 @@ fun ChatConversationScreen(
                 }
             }
 
-            // Security & Auto-Destruct Indicator Banner
+            // Peer Storage Clarity Banner
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -661,14 +966,14 @@ fun ChatConversationScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Lock,
+                            imageVector = Icons.Default.PhoneAndroid,
                             contentDescription = null,
                             tint = theme.alertGreen,
                             modifier = Modifier.size(11.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Tor Multi-Hop Encrypted",
+                            text = "P2P: Saved on your phone & peer device only",
                             fontSize = 10.sp,
                             color = theme.textSecondary
                         )
@@ -692,7 +997,7 @@ fun ChatConversationScreen(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Auto-Destruct: ${autoDestructSeconds}s",
+                                text = "${autoDestructSeconds}s TTL",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = theme.alertAmber
@@ -702,58 +1007,50 @@ fun ChatConversationScreen(
                 }
             }
 
-            // Messages LazyColumn
+            // Message History
             LazyColumn(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(conversationMessages, key = { it.id }) { msg ->
+                items(conversationMessages, key = { it.id }) { message ->
                     MessageBubble(
-                        message = msg,
-                        onInspectCipher = { showCipherModal = msg }
+                        message = message,
+                        onInspectCipher = { showCipherModal = message },
+                        onDeleteMessage = { viewModel.deleteMessage(message.id) }
                     )
                 }
             }
 
-            // Bottom Input Bar
+            // Input Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(theme.surface)
-                    .border(1.dp, theme.border)
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
                     value = inputText,
                     onValueChange = { inputText = it },
-                    placeholder = {
-                        Text(
-                            text = if (autoDestructSeconds != null) "Vaporizing message (${autoDestructSeconds}s)..." else "Encrypted message...",
-                            color = theme.textMuted,
-                            fontSize = 12.5.sp
-                        )
-                    },
-                    maxLines = 4,
+                    placeholder = { Text("Write encrypted message...", color = theme.textMuted, fontSize = 13.sp) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("chat_message_input"),
+                    shape = RoundedCornerShape(20.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = theme.surfaceElevated,
                         unfocusedContainerColor = theme.surfaceElevated,
-                        focusedBorderColor = if (autoDestructSeconds != null) theme.alertAmber else theme.accentPrimary,
+                        focusedBorderColor = theme.accentPrimary,
                         unfocusedBorderColor = theme.border,
                         focusedTextColor = theme.textPrimary,
                         unfocusedTextColor = theme.textPrimary
                     ),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("chat_message_input")
+                    maxLines = 4
                 )
-
-                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = {
@@ -771,43 +1068,107 @@ fun ChatConversationScreen(
                         }
                     },
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (autoDestructSeconds != null) theme.alertAmber else theme.accentPrimary)
+                        .background(theme.accentPrimary)
                         .testTag("send_message_button")
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send Encrypted",
+                        contentDescription = "Send Encrypted Message",
                         tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
         }
     }
 
-    // Inspect Ciphertext Dialog with Burn / Vaporize Option
+    // Modal to view Ciphertext & Cryptographic Proof
     if (showCipherModal != null) {
-        val m = showCipherModal!!
+        val msg = showCipherModal!!
         AlertDialog(
             onDismissRequest = { showCipherModal = null },
             containerColor = theme.surface,
             title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Lock, contentDescription = null, tint = theme.alertGreen)
+                    Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = theme.accentPrimary, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("AES-256-GCM Payload", color = theme.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Cryptographic Payload", color = theme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             },
             text = {
-                Column {
-                    Text(
-                        text = "Transmitted encrypted through Tor SOCKS5 proxy. Decrypted strictly in-memory on this phone:",
-                        fontSize = 11.5.sp,
-                        color = theme.textSecondary
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Decrypted Content:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = theme.textPrimary)
+                    Text(msg.content, fontSize = 12.sp, color = theme.textSecondary)
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("AES-256-GCM Raw Ciphertext:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = theme.textPrimary)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(theme.surfaceElevated)
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = msg.encryptedBlob.ifEmpty { "AES_GCM_ENCRYPTED_BLOB_V2" },
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = theme.accentPrimary
+                        )
+                    }
+
+                    if (msg.expiresAt != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.AutoDelete, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val remainingSec = ((msg.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
+                            Text("Vaporizes in: ${remainingSec}s", fontSize = 11.sp, color = theme.alertAmber, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Ciphertext", msg.encryptedBlob))
+                        Toast.makeText(context, "Ciphertext copied to clipboard", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = theme.accentPrimary, contentColor = Color.White),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Copy Ciphertext", fontSize = 11.5.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCipherModal = null }) {
+                    Text("Close", color = theme.textSecondary)
+                }
+            }
+        )
+    }
+
+    // Modal to verify Key Fingerprint
+    if (showFingerprintModal) {
+        AlertDialog(
+            onDismissRequest = { showFingerprintModal = false },
+            containerColor = theme.surface,
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(imageVector = Icons.Default.Fingerprint, contentDescription = null, tint = theme.accentPrimary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Peer Cryptographic Identity", color = theme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Compare this fingerprint with your peer over a trusted side-channel to prevent MITM attacks:", fontSize = 12.sp, color = theme.textSecondary)
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -816,114 +1177,32 @@ fun ChatConversationScreen(
                             .padding(10.dp)
                     ) {
                         Text(
-                            text = m.encryptedBlob.ifEmpty { "AES_GCM_CIPHERTEXT_BASE64_PAYLOAD" },
-                            fontSize = 10.5.sp,
+                            text = peer.fingerprint,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
                             color = theme.accentPrimary
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Decrypted Text:\n${m.content}",
-                        fontSize = 12.sp,
-                        color = theme.textPrimary
-                    )
 
-                    if (m.expiresAt != null) {
-                        val remainingSec = ((m.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = theme.alertAmber, modifier = Modifier.size(14.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Auto-Destruct armed: ${remainingSec}s remaining until wiped",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = theme.alertAmber
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            viewModel.deleteMessage(m.id)
-                            showCipherModal = null
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = theme.alertRed, contentColor = Color.White),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Burn Now", fontSize = 11.sp)
-                    }
-                    TextButton(onClick = { showCipherModal = null }) {
-                        Text("Close", color = theme.accentPrimary)
-                    }
-                }
-            }
-        )
-    }
-
-    // Peer Fingerprint Verification Dialog
-    if (showFingerprintModal) {
-        AlertDialog(
-            onDismissRequest = { showFingerprintModal = false },
-            containerColor = theme.surface,
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Fingerprint, contentDescription = null, tint = theme.accentPrimary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Verify Peer Fingerprint", color = theme.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            },
-            text = {
-                Column {
-                    Text(
-                        text = "Compare this cryptographic key fingerprint out-of-band to prevent MITM attacks:",
-                        color = theme.textSecondary,
-                        fontSize = 11.5.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(theme.surfaceElevated)
-                            .padding(12.dp)
-                    ) {
-                        Text(
-                            text = peer.fingerprint,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            color = theme.alertGreen
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Status: ${if (peer.isVerified) "Verified Contact" else "Unverified (Trust on first use)"}",
-                        fontSize = 11.5.sp,
-                        color = if (peer.isVerified) theme.alertGreen else theme.textMuted
-                    )
+                    Text("Tor Onion Address:", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = theme.textPrimary)
+                    Text(peer.onionAddress, fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = theme.textMuted)
                 }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        clipboard.setPrimaryClip(ClipData.newPlainText("Fingerprint", peer.fingerprint))
-                        Toast.makeText(context, "Fingerprint copied!", Toast.LENGTH_SHORT).show()
+                        viewModel.verifyPeer(peer.peerId, !peer.isVerified)
                         showFingerprintModal = false
+                        Toast.makeText(context, if (!peer.isVerified) "Marked peer as Verified!" else "Marked peer as Unverified", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = theme.accentPrimary),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (peer.isVerified) theme.alertAmber else theme.alertGreen,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Fingerprint", fontSize = 12.sp)
+                    Text(if (peer.isVerified) "Unmark Verified" else "Mark Verified", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             },
             dismissButton = {
@@ -938,82 +1217,85 @@ fun ChatConversationScreen(
 @Composable
 fun MessageBubble(
     message: MessageEntity,
-    onInspectCipher: () -> Unit
+    onInspectCipher: () -> Unit,
+    onDeleteMessage: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val theme = LocalMedicalTheme.current
-    val isOut = message.isOutgoing
-    val alignment = if (isOut) Alignment.End else Alignment.Start
-    val bg = if (isOut) theme.accentPrimary.copy(alpha = 0.15f) else theme.surface
-    val border = if (message.expiresAt != null) theme.alertAmber.copy(alpha = 0.6f) else if (isOut) theme.accentPrimary.copy(alpha = 0.4f) else theme.border
-
-    val remainingSeconds = if (message.expiresAt != null) {
-        ((message.expiresAt - System.currentTimeMillis()) / 1000).coerceAtLeast(0)
-    } else null
+    val isMine = message.isOutgoing
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = alignment
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
         Box(
             modifier = Modifier
                 .clip(
                     RoundedCornerShape(
-                        topStart = 14.dp,
-                        topEnd = 14.dp,
-                        bottomStart = if (isOut) 14.dp else 2.dp,
-                        bottomEnd = if (isOut) 2.dp else 14.dp
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isMine) 16.dp else 4.dp,
+                        bottomEnd = if (isMine) 4.dp else 16.dp
                     )
                 )
-                .background(bg)
+                .background(if (isMine) theme.accentPrimary else theme.surfaceElevated)
                 .border(
                     1.dp,
-                    border,
+                    if (isMine) theme.accentPrimary else theme.border,
                     RoundedCornerShape(
-                        topStart = 14.dp,
-                        topEnd = 14.dp,
-                        bottomStart = if (isOut) 14.dp else 2.dp,
-                        bottomEnd = if (isOut) 2.dp else 14.dp
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isMine) 16.dp else 4.dp,
+                        bottomEnd = if (isMine) 4.dp else 16.dp
                     )
                 )
-                .clickable(onClick = onInspectCipher)
-                .padding(horizontal = 12.dp, vertical = 9.dp)
+                .clickable { onInspectCipher() }
+                .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Column {
                 Text(
                     text = message.content,
-                    color = theme.textPrimary,
-                    fontSize = 13.sp
+                    color = if (isMine) Color.White else theme.textPrimary,
+                    fontSize = 13.5.sp,
+                    lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Icon(
-                        imageVector = if (remainingSeconds != null) Icons.Default.LocalFireDepartment else Icons.Default.Lock,
+                        imageVector = Icons.Default.Lock,
                         contentDescription = "Encrypted",
-                        tint = if (remainingSeconds != null) theme.alertAmber else if (isOut) theme.accentPrimary else theme.alertGreen,
+                        tint = if (isMine) Color.White.copy(alpha = 0.7f) else theme.textMuted,
                         modifier = Modifier.size(10.dp)
                     )
+
                     Text(
                         text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                        fontSize = 9.5.sp,
-                        color = theme.textMuted
+                        fontSize = 10.sp,
+                        color = if (isMine) Color.White.copy(alpha = 0.7f) else theme.textMuted
                     )
-                    if (remainingSeconds != null) {
-                        Text(
-                            text = "• 🔥 ${remainingSeconds}s",
-                            fontSize = 9.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = theme.alertAmber
+
+                    if (message.autoDestructSeconds != null) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = "Ephemeral",
+                            tint = if (isMine) Color.White else theme.alertAmber,
+                            modifier = Modifier.size(11.dp)
                         )
-                    } else if (isOut) {
-                        Text(
-                            text = "• ${message.status}",
-                            fontSize = 9.5.sp,
-                            color = theme.accentPrimary
+                    }
+
+                    if (isMine) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = message.status,
+                            tint = Color.White.copy(alpha = 0.8f),
+                            modifier = Modifier.size(10.dp)
                         )
                     }
                 }

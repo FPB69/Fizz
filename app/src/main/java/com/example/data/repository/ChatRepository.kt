@@ -5,6 +5,8 @@ import com.example.data.database.MessageDao
 import com.example.data.database.MessageEntity
 import com.example.data.database.PeerContactDao
 import com.example.data.database.PeerContactEntity
+import com.example.data.database.TalkRequestDao
+import com.example.data.database.TalkRequestEntity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -14,10 +16,14 @@ import java.util.UUID
 class ChatRepository(
     private val messageDao: MessageDao,
     private val peerDao: PeerContactDao,
+    private val talkRequestDao: TalkRequestDao,
     private val cryptoManager: CryptoManager
 ) {
     val allMessages: Flow<List<MessageEntity>> = messageDao.getAllMessages()
     val allPeers: Flow<List<PeerContactEntity>> = peerDao.getAllPeers()
+    val connectedPeers: Flow<List<PeerContactEntity>> = peerDao.getConnectedPeers()
+    val allTalkRequests: Flow<List<TalkRequestEntity>> = talkRequestDao.getAllTalkRequests()
+    val pendingIncomingRequests: Flow<List<TalkRequestEntity>> = talkRequestDao.getPendingIncomingRequests()
 
     fun getMessagesForPeer(peerId: String): Flow<List<MessageEntity>> {
         return messageDao.getMessagesForPeer(peerId)
@@ -25,6 +31,148 @@ class ChatRepository(
 
     suspend fun getPeer(peerId: String): PeerContactEntity? {
         return peerDao.getPeer(peerId)
+    }
+
+    suspend fun getLatestRequestForPeer(peerId: String): TalkRequestEntity? {
+        return talkRequestDao.getLatestRequestForPeer(peerId)
+    }
+
+    suspend fun sendTalkRequest(
+        peerId: String,
+        peerAlias: String,
+        peerOnion: String,
+        listingId: String? = null,
+        listingTitle: String? = null,
+        listingPrice: String? = null,
+        initialMessage: String = "Hi, I would like to connect regarding your listing."
+    ): TalkRequestEntity = withContext(Dispatchers.IO) {
+        val requestId = "req_${UUID.randomUUID().toString().take(8)}"
+        val request = TalkRequestEntity(
+            id = requestId,
+            peerId = peerId,
+            peerAlias = peerAlias.ifEmpty { peerOnion.take(14) + "..." },
+            peerOnion = peerOnion,
+            listingId = listingId,
+            listingTitle = listingTitle,
+            listingPrice = listingPrice,
+            isIncoming = false,
+            status = "PENDING",
+            initialMessage = initialMessage,
+            timestamp = System.currentTimeMillis()
+        )
+        talkRequestDao.insertRequest(request)
+
+        val existing = peerDao.getPeer(peerId)
+        if (existing == null) {
+            peerDao.insertPeer(
+                PeerContactEntity(
+                    peerId = peerId,
+                    alias = peerAlias.ifEmpty { peerOnion.take(14) + "..." },
+                    onionAddress = peerOnion,
+                    publicKey = "PUB_${peerId.take(12)}",
+                    fingerprint = "FP_${peerOnion.take(8).uppercase()}",
+                    lastSeen = System.currentTimeMillis(),
+                    isOnline = true,
+                    connectionStatus = "PENDING_SENT"
+                )
+            )
+        } else {
+            peerDao.insertPeer(existing.copy(connectionStatus = "PENDING_SENT"))
+        }
+
+        request
+    }
+
+    suspend fun receiveIncomingTalkRequest(
+        peerId: String,
+        peerAlias: String,
+        peerOnion: String,
+        listingId: String? = null,
+        listingTitle: String? = null,
+        listingPrice: String? = null,
+        initialMessage: String = "Hi, I'm interested in talking with you."
+    ): TalkRequestEntity = withContext(Dispatchers.IO) {
+        val requestId = "req_${UUID.randomUUID().toString().take(8)}"
+        val request = TalkRequestEntity(
+            id = requestId,
+            peerId = peerId,
+            peerAlias = peerAlias.ifEmpty { peerOnion.take(14) + "..." },
+            peerOnion = peerOnion,
+            listingId = listingId,
+            listingTitle = listingTitle,
+            listingPrice = listingPrice,
+            isIncoming = true,
+            status = "PENDING",
+            initialMessage = initialMessage,
+            timestamp = System.currentTimeMillis()
+        )
+        talkRequestDao.insertRequest(request)
+
+        val existing = peerDao.getPeer(peerId)
+        if (existing == null) {
+            peerDao.insertPeer(
+                PeerContactEntity(
+                    peerId = peerId,
+                    alias = peerAlias.ifEmpty { peerOnion.take(14) + "..." },
+                    onionAddress = peerOnion,
+                    publicKey = "PUB_${peerId.take(12)}",
+                    fingerprint = "FP_${peerOnion.take(8).uppercase()}",
+                    lastSeen = System.currentTimeMillis(),
+                    isOnline = true,
+                    connectionStatus = "PENDING_RECEIVED"
+                )
+            )
+        } else {
+            peerDao.insertPeer(existing.copy(connectionStatus = "PENDING_RECEIVED"))
+        }
+
+        request
+    }
+
+    suspend fun acceptTalkRequest(requestId: String) = withContext(Dispatchers.IO) {
+        val request = talkRequestDao.getRequestById(requestId) ?: return@withContext
+        talkRequestDao.updateStatus(requestId, "ACCEPTED")
+        peerDao.updateConnectionStatus(request.peerId, "CONNECTED")
+
+        // Create initial handshake confirmation message
+        val now = System.currentTimeMillis()
+        val handshakeMsg = MessageEntity(
+            id = "msg_hs_${UUID.randomUUID().toString().take(8)}",
+            peerId = request.peerId,
+            peerOnion = request.peerOnion,
+            content = "Encrypted P2P connection established. Messages saved locally on device.",
+            encryptedBlob = "UEVFUl9DT05ORUNUSU9OX0FDQ0VQVEVE",
+            isOutgoing = false,
+            timestamp = now,
+            status = "VERIFIED",
+            relatedListingId = request.listingId,
+            relatedListingTitle = request.listingTitle,
+            relatedListingPrice = request.listingPrice
+        )
+        messageDao.insertMessage(handshakeMsg)
+
+        if (request.initialMessage.isNotBlank() && request.initialMessage != "Hi, I'm interested in talking with you.") {
+            val userMsg = MessageEntity(
+                id = "msg_req_${UUID.randomUUID().toString().take(8)}",
+                peerId = request.peerId,
+                peerOnion = request.peerOnion,
+                content = request.initialMessage,
+                encryptedBlob = "SU5JVElBTF9VU0VSX1JFUVVFU1RfTVNH",
+                isOutgoing = false,
+                timestamp = now + 50,
+                status = "VERIFIED",
+                relatedListingId = request.listingId,
+                relatedListingTitle = request.listingTitle,
+                relatedListingPrice = request.listingPrice
+            )
+            messageDao.insertMessage(userMsg)
+        }
+    }
+
+    suspend fun declineTalkRequest(requestId: String) = withContext(Dispatchers.IO) {
+        val request = talkRequestDao.getRequestById(requestId) ?: return@withContext
+        talkRequestDao.updateStatus(requestId, "DECLINED")
+        peerDao.updateConnectionStatus(request.peerId, "NOT_CONNECTED")
     }
 
     suspend fun sendMessage(
@@ -59,7 +207,6 @@ class ChatRepository(
         )
         messageDao.insertMessage(msg)
 
-        // Ensure peer contact exists
         val existing = peerDao.getPeer(peerId)
         if (existing == null) {
             peerDao.insertPeer(
@@ -70,11 +217,12 @@ class ChatRepository(
                     publicKey = "PUBKEY_${peerId}",
                     fingerprint = "E2:4B:91:0A:78:CD:1F:09",
                     lastSeen = System.currentTimeMillis(),
-                    isOnline = true
+                    isOnline = true,
+                    connectionStatus = "CONNECTED"
                 )
             )
         } else {
-            peerDao.insertPeer(existing.copy(lastSeen = System.currentTimeMillis()))
+            peerDao.insertPeer(existing.copy(lastSeen = System.currentTimeMillis(), connectionStatus = "CONNECTED"))
         }
 
         msg
@@ -122,9 +270,12 @@ class ChatRepository(
                     publicKey = "PUBKEY_${senderId}",
                     fingerprint = "8F:3A:C2:59:71:0D:E3:44",
                     lastSeen = System.currentTimeMillis(),
-                    isOnline = true
+                    isOnline = true,
+                    connectionStatus = "CONNECTED"
                 )
             )
+        } else {
+            peerDao.insertPeer(existing.copy(lastSeen = System.currentTimeMillis(), connectionStatus = "CONNECTED"))
         }
     }
 
@@ -155,7 +306,8 @@ class ChatRepository(
             fingerprint = publicKeyFingerprint.ifEmpty { "FP_${onionAddress.take(8).uppercase()}" },
             lastSeen = System.currentTimeMillis(),
             isOnline = true,
-            isVerified = true
+            isVerified = true,
+            connectionStatus = "CONNECTED"
         )
         peerDao.insertPeer(entity)
     }
@@ -181,7 +333,8 @@ class ChatRepository(
             lastSeen = System.currentTimeMillis() - 120000,
             isOnline = true,
             circuitHops = 3,
-            isVerified = true
+            isVerified = true,
+            connectionStatus = "CONNECTED"
         )
         val peer2 = PeerContactEntity(
             peerId = "peer_shield_vault",
@@ -192,10 +345,39 @@ class ChatRepository(
             lastSeen = System.currentTimeMillis() - 1800000,
             isOnline = true,
             circuitHops = 3,
-            isVerified = false
+            isVerified = false,
+            connectionStatus = "CONNECTED"
+        )
+        val peer3 = PeerContactEntity(
+            peerId = "peer_aurora_mesh",
+            alias = "Aurora Radio Labs",
+            onionAddress = "auroramesh773xk91.onion",
+            publicKey = "RSA_PUB_auroramesh",
+            fingerprint = "C3:99:11:44:88:77:00:AA",
+            lastSeen = System.currentTimeMillis() - 600000,
+            isOnline = true,
+            circuitHops = 3,
+            isVerified = false,
+            connectionStatus = "PENDING_RECEIVED"
         )
 
-        peerDao.insertPeers(listOf(peer1, peer2))
+        peerDao.insertPeers(listOf(peer1, peer2, peer3))
+
+        // Pre-seed an incoming talk request from Aurora Radio Labs
+        val sampleIncomingRequest = TalkRequestEntity(
+            id = "req_init_incoming_01",
+            peerId = "peer_aurora_mesh",
+            peerAlias = "Aurora Radio Labs",
+            peerOnion = "auroramesh773xk91.onion",
+            listingId = "lst_local_01",
+            listingTitle = "Encrypted LoRa Mesh Communicator",
+            listingPrice = "0.045 XMR",
+            isIncoming = true,
+            status = "PENDING",
+            initialMessage = "Hello! I saw your LoRa Mesh Communicator listing and would like to establish an encrypted P2P talk channel.",
+            timestamp = System.currentTimeMillis() - 600000
+        )
+        talkRequestDao.insertRequest(sampleIncomingRequest)
 
         val initialMessages = listOf(
             MessageEntity(
@@ -244,5 +426,6 @@ class ChatRepository(
     suspend fun wipeAll() = withContext(Dispatchers.IO) {
         messageDao.clearAll()
         peerDao.clearAll()
+        talkRequestDao.clearAll()
     }
 }

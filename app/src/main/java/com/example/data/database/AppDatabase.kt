@@ -9,15 +9,17 @@ import androidx.room.RoomDatabase
     entities = [
         ListingEntity::class,
         MessageEntity::class,
-        PeerContactEntity::class
+        PeerContactEntity::class,
+        TalkRequestEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun listingDao(): ListingDao
     abstract fun messageDao(): MessageDao
     abstract fun peerContactDao(): PeerContactDao
+    abstract fun talkRequestDao(): TalkRequestDao
 
     companion object {
         @Volatile

@@ -321,8 +321,8 @@ fun ListingCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "P2P Encrypted Inquiry",
-                            fontWeight = FontWeight.SemiBold,
+                            text = "Contact Seller",
+                            fontWeight = FontWeight.Bold,
                             fontSize = 12.5.sp
                         )
                     }

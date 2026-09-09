@@ -8,7 +8,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// CompositionLocal to provide Arco Global Architectural Design Tokens
+// CompositionLocal to provide Fizz Design Tokens
 data class MedicalThemeColors(
   val isDark: Boolean,
   val background: Color,
@@ -46,6 +46,8 @@ val LocalMedicalTheme = compositionLocalOf {
     alertRed = ArcoCrimson
   )
 }
+
+val LocalOpenDyslexic = compositionLocalOf { false }
 
 private val ArcoDarkColorScheme = darkColorScheme(
   primary = ArcoGold,
@@ -96,6 +98,7 @@ private val ArcoLightColorScheme = lightColorScheme(
 @Composable
 fun MyApplicationTheme(
   darkTheme: Boolean = true,
+  openDyslexic: Boolean = false,
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
@@ -138,10 +141,15 @@ fun MyApplicationTheme(
     )
   }
 
-  CompositionLocalProvider(LocalMedicalTheme provides medicalColors) {
+  val activeTypography = if (openDyslexic) OpenDyslexicTypography else StandardTypography
+
+  CompositionLocalProvider(
+    LocalMedicalTheme provides medicalColors,
+    LocalOpenDyslexic provides openDyslexic
+  ) {
     MaterialTheme(
       colorScheme = colorScheme,
-      typography = Typography,
+      typography = activeTypography,
       content = content
     )
   }

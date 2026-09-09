@@ -4,10 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,16 +24,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -84,6 +80,7 @@ fun PrivacySecurityScreen(
     val theme = LocalMedicalTheme.current
     val torStatus by viewModel.torStatus.collectAsStateWithLifecycle()
     val encryptionConfig by viewModel.encryptionConfig.collectAsStateWithLifecycle()
+    val isOpenDyslexic by viewModel.isOpenDyslexic.collectAsStateWithLifecycle()
     val showLegalDisclaimer by viewModel.showLegalDisclaimer.collectAsStateWithLifecycle()
     val showPeerQrDialog by viewModel.showPeerQrDialog.collectAsStateWithLifecycle()
 
@@ -98,9 +95,9 @@ fun PrivacySecurityScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Screen Header
+            // Header
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -108,68 +105,51 @@ fun PrivacySecurityScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "FIZZ 1.1 SECURITY DECK",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 0.8.sp,
-                                color = theme.textPrimary
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(theme.accentPrimary.copy(alpha = 0.15f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "TOR ONION",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = theme.accentPrimary
-                                )
-                            }
-                        }
                         Text(
-                            text = "Direct P2P Links • Multi-Bridge Routing • 4-Layer Cipher",
-                            fontSize = 11.sp,
-                            color = theme.accentPrimary,
-                            fontWeight = FontWeight.Medium
+                            text = "Settings & Security",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.textPrimary
+                        )
+                        Text(
+                            text = "Tor status, keys, and display",
+                            fontSize = 12.sp,
+                            color = theme.textSecondary
                         )
                     }
 
-                    // Theme Toggle
-                    IconButton(
-                        onClick = { viewModel.toggleTheme() },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(theme.surfaceElevated)
-                            .border(1.dp, theme.borderGold, CircleShape)
-                    ) {
-                        Text(
-                            text = if (theme.isDark) "🌊" else "☀️",
-                            fontSize = 16.sp
-                        )
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        IconButton(
+                            onClick = { viewModel.toggleTheme() },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(theme.surfaceElevated)
+                                .border(1.dp, theme.borderGold, CircleShape)
+                        ) {
+                            Text(
+                                text = if (theme.isDark) "🌙" else "☀️",
+                                fontSize = 15.sp
+                            )
+                        }
                     }
                 }
             }
 
-            // 1. Direct P2P Link & QR Pairing Card
+            // 1. Accessibility & Font Card
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.2.dp, theme.borderGold, RoundedCornerShape(16.dp))
-                        .testTag("p2p_qr_card"),
-                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated.copy(alpha = 0.95f)),
-                    shape = RoundedCornerShape(16.dp)
+                        .border(1.2.dp, theme.borderGold, RoundedCornerShape(14.dp))
+                        .testTag("opendyslexic_font_card"),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(14.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -185,7 +165,7 @@ fun PrivacySecurityScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        Icons.Default.QrCode2,
+                                        imageVector = Icons.Default.TextFields,
                                         contentDescription = null,
                                         tint = theme.accentPrimary,
                                         modifier = Modifier.size(18.dp)
@@ -194,27 +174,67 @@ fun PrivacySecurityScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Direct P2P Identity",
+                                        text = "OpenDyslexic Font",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = theme.textPrimary
                                     )
                                     Text(
-                                        text = "Shareable QR Code & Onion Link",
-                                        fontSize = 10.5.sp,
+                                        text = if (isOpenDyslexic) "Enabled (wider spacing & bottom weighting)" else "Standard font",
+                                        fontSize = 11.sp,
                                         color = theme.textSecondary
                                     )
                                 }
                             }
 
+                            Switch(
+                                checked = isOpenDyslexic,
+                                onCheckedChange = { viewModel.toggleOpenDyslexic() },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = theme.background,
+                                    checkedTrackColor = theme.accentPrimary
+                                ),
+                                modifier = Modifier.testTag("switch_opendyslexic")
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. Peer Identity & QR Pairing
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, theme.border, RoundedCornerShape(14.dp))
+                        .testTag("p2p_qr_card"),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "My Onion Identity",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = theme.textPrimary
+                            )
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
+                                    .clip(RoundedCornerShape(6.dp))
                                     .background(theme.alertGreen.copy(alpha = 0.15f))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
                                 Text(
-                                    text = "0-Discovery",
+                                    text = "Ready",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = theme.alertGreen
@@ -222,59 +242,50 @@ fun PrivacySecurityScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Onion Address box
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(theme.surface)
-                                .border(1.dp, theme.border, RoundedCornerShape(10.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .border(1.dp, theme.border, RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "My Tor Onion Node",
-                                        fontSize = 9.sp,
-                                        color = theme.textMuted
-                                    )
-                                    Text(
-                                        text = viewModel.cryptoManager.myOnionAddress,
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = theme.accentPrimary,
-                                        fontFamily = FontFamily.Monospace,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-
+                                Text(
+                                    text = viewModel.cryptoManager.myOnionAddress,
+                                    fontSize = 11.5.sp,
+                                    color = theme.accentPrimary,
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
                                 IconButton(
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         val clip = ClipData.newPlainText("Tor Onion", viewModel.cryptoManager.myOnionAddress)
                                         clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Onion address copied!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Copied!", Toast.LENGTH_SHORT).show()
                                     },
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(24.dp)
                                 ) {
                                     Icon(
                                         Icons.Default.ContentCopy,
-                                        contentDescription = "Copy Onion",
+                                        contentDescription = "Copy",
                                         tint = theme.accentPrimary,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -285,7 +296,7 @@ fun PrivacySecurityScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .testTag("btn_show_qr"),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = theme.accentPrimary,
                                     contentColor = theme.background
@@ -293,7 +304,7 @@ fun PrivacySecurityScreen(
                             ) {
                                 Icon(Icons.Default.QrCode2, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Show My QR", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                                Text("My QR Code", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
 
                             OutlinedButton(
@@ -301,31 +312,31 @@ fun PrivacySecurityScreen(
                                 modifier = Modifier
                                     .weight(1f)
                                     .testTag("btn_scan_qr"),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, theme.accentPrimary)
                             ) {
                                 Icon(Icons.Default.VpnKey, contentDescription = null, modifier = Modifier.size(14.dp), tint = theme.accentPrimary)
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Pair New Peer", fontSize = 11.5.sp, color = theme.accentPrimary)
+                                Text("Pair Peer", fontSize = 12.sp, color = theme.accentPrimary)
                             }
                         }
                     }
                 }
             }
 
-            // 2. Tor Circuit & Bridge Telemetry (Streamlined & Clean)
+            // 3. Tor Relays & Bridges
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, theme.borderGold, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated.copy(alpha = 0.95f)),
-                    shape = RoundedCornerShape(16.dp)
+                        .border(1.dp, theme.border, RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(14.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -334,38 +345,37 @@ fun PrivacySecurityScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Tor Circuit & Relays",
+                                    text = "Tor Circuit",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = theme.textPrimary
                                 )
                                 Text(
-                                    text = "SOCKS5 Proxy Port :${torStatus.socksProxyPort} • Multi-Hop",
-                                    fontSize = 10.5.sp,
-                                    color = theme.accentPrimary
+                                    text = "Port ${torStatus.socksProxyPort} • 3 Hops",
+                                    fontSize = 11.sp,
+                                    color = theme.textSecondary
                                 )
                             }
 
                             IconButton(
                                 onClick = { viewModel.rotateTorCircuit() },
                                 modifier = Modifier
-                                    .size(32.dp)
+                                    .size(30.dp)
                                     .clip(CircleShape)
                                     .background(theme.surface)
                                     .border(1.dp, theme.borderGold, CircleShape)
                             ) {
                                 Icon(
                                     Icons.Default.Refresh,
-                                    contentDescription = "Rotate Circuit",
+                                    contentDescription = "New Circuit",
                                     tint = theme.accentPrimary,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                        // Circuit Hops Bar
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -373,9 +383,9 @@ fun PrivacySecurityScreen(
                         ) {
                             val hops = torStatus.activeCircuitHops.ifEmpty {
                                 listOf(
-                                    com.example.data.network.TorCircuitHop("Entry Guard", "Germany", "🇩🇪", "185.220.xxx", "Guard-DE", 42L),
-                                    com.example.data.network.TorCircuitHop("Middle Relay", "Iceland", "🇮🇸", "193.187.xxx", "Mid-IS", 88L),
-                                    com.example.data.network.TorCircuitHop("Exit Node", "Switzerland", "🇨🇭", "179.43.xxx", "Exit-CH", 135L)
+                                    com.example.data.network.TorCircuitHop("Entry", "Germany", "🇩🇪", "185.220.xxx", "Guard-DE", 42L),
+                                    com.example.data.network.TorCircuitHop("Middle", "Iceland", "🇮🇸", "193.187.xxx", "Mid-IS", 88L),
+                                    com.example.data.network.TorCircuitHop("Exit", "Switzerland", "🇨🇭", "179.43.xxx", "Exit-CH", 135L)
                                 )
                             }
 
@@ -383,29 +393,27 @@ fun PrivacySecurityScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
+                                        .clip(RoundedCornerShape(6.dp))
                                         .background(theme.surface)
-                                        .border(1.dp, theme.border, RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 8.dp, vertical = 6.dp)
+                                        .border(1.dp, theme.border, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 6.dp, vertical = 4.dp)
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                                        Text(text = "${hop.flag} ${hop.nodeType}", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = theme.textPrimary, maxLines = 1)
-                                        Text(text = "${hop.latencyMs}ms", fontSize = 9.sp, color = theme.accentPrimary, fontFamily = FontFamily.Monospace)
+                                        Text(text = "${hop.flag} ${hop.nodeType}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = theme.textPrimary, maxLines = 1)
+                                        Text(text = "${hop.latencyMs}ms", fontSize = 9.sp, color = theme.accentPrimary)
                                     }
                                 }
-
                                 if (index < hops.size - 1) {
-                                    Text("➔", color = theme.textMuted, fontSize = 10.sp)
+                                    Text("→", color = theme.textMuted, fontSize = 10.sp)
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                        // Pluggable Bridges Filter Row
                         Text(
-                            text = "Pluggable Transport Bridge",
-                            fontSize = 11.sp,
+                            text = "Bridge Type",
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Medium,
                             color = theme.textSecondary
                         )
@@ -419,25 +427,19 @@ fun PrivacySecurityScreen(
                                 TorBridgeType.DIRECT,
                                 TorBridgeType.OBFS4,
                                 TorBridgeType.SNOWFLAKE,
-                                TorBridgeType.MEEK_AZURE,
-                                TorBridgeType.CUSTOM
+                                TorBridgeType.MEEK_AZURE
                             )
                             items(bridges) { bridge ->
                                 val isSelected = torStatus.bridgeType == bridge
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = { viewModel.setBridgeType(bridge) },
-                                    label = { Text(bridge.protocolTag, fontSize = 10.sp) },
+                                    label = { Text(bridge.protocolTag, fontSize = 11.sp) },
                                     colors = FilterChipDefaults.filterChipColors(
                                         selectedContainerColor = theme.accentPrimary,
                                         selectedLabelColor = theme.background,
                                         containerColor = theme.surface,
                                         labelColor = theme.textSecondary
-                                    ),
-                                    border = FilterChipDefaults.filterChipBorder(
-                                        enabled = true,
-                                        selected = isSelected,
-                                        borderColor = if (isSelected) theme.accentPrimary else theme.border
                                     )
                                 )
                             }
@@ -446,75 +448,42 @@ fun PrivacySecurityScreen(
                 }
             }
 
-            // 3. 4-Layer Cryptographic Shield
+            // 4. Encryption
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, theme.borderGold, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated.copy(alpha = 0.95f)),
-                    shape = RoundedCornerShape(16.dp)
+                        .border(1.dp, theme.border, RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(14.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(theme.accentPrimary.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Shield,
-                                        contentDescription = null,
-                                        tint = theme.accentPrimary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "4-Layer Cipher Shield",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = theme.textPrimary
-                                    )
-                                    Text(
-                                        text = "End-to-End Quantum-Resistant Cascade",
-                                        fontSize = 10.5.sp,
-                                        color = theme.textSecondary
-                                    )
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(theme.alertGreen.copy(alpha = 0.15f))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text("4/4 Active", fontSize = 9.5.sp, fontWeight = FontWeight.Bold, color = theme.alertGreen)
-                            }
+                            Text(
+                                text = "Encryption",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = theme.textPrimary
+                            )
+                            Text("Active", fontSize = 11.sp, color = theme.alertGreen, fontWeight = FontWeight.Bold)
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
-                        // 4 Simple Compact Toggle Rows
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("AES-256-GCM Hardware Cipher", fontSize = 11.5.sp, color = theme.textPrimary)
+                            Text("AES-256-GCM", fontSize = 12.sp, color = theme.textPrimary)
                             Switch(
                                 checked = encryptionConfig.useAes256Gcm,
                                 onCheckedChange = { viewModel.toggleAesGcm() },
@@ -527,7 +496,7 @@ fun PrivacySecurityScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("ChaCha20-Poly1305 Stream Armor", fontSize = 11.5.sp, color = theme.textPrimary)
+                            Text("ChaCha20-Poly1305", fontSize = 12.sp, color = theme.textPrimary)
                             Switch(
                                 checked = encryptionConfig.useChaCha20Poly1305,
                                 onCheckedChange = { viewModel.toggleChaCha20() },
@@ -540,23 +509,10 @@ fun PrivacySecurityScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("RSA-4096 Hybrid Key Exchange", fontSize = 11.5.sp, color = theme.textPrimary)
+                            Text("RSA-4096 Key Exchange", fontSize = 12.sp, color = theme.textPrimary)
                             Switch(
                                 checked = encryptionConfig.useHybridRsaKeyExchange,
                                 onCheckedChange = { viewModel.toggleHybridRsa() },
-                                colors = SwitchDefaults.colors(checkedThumbColor = theme.background, checkedTrackColor = theme.accentPrimary)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("ZK Size Normalization & Padding", fontSize = 11.5.sp, color = theme.textPrimary)
-                            Switch(
-                                checked = encryptionConfig.useZeroKnowledgeTrafficPadding,
-                                onCheckedChange = { viewModel.toggleTrafficPadding() },
                                 colors = SwitchDefaults.colors(checkedThumbColor = theme.background, checkedTrackColor = theme.accentPrimary)
                             )
                         }
@@ -564,33 +520,26 @@ fun PrivacySecurityScreen(
                 }
             }
 
-            // 4. Sovereign Privacy & 0-Fault Actions
+            // 5. App Data & Reset
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, theme.borderGold, RoundedCornerShape(16.dp)),
-                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated.copy(alpha = 0.95f)),
-                    shape = RoundedCornerShape(16.dp)
+                        .border(1.dp, theme.border, RoundedCornerShape(14.dp)),
+                    colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "Sovereign Vault & Legal Covenant",
-                            fontSize = 13.5.sp,
+                            text = "Data Management",
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = theme.textPrimary
-                        )
-
-                        Text(
-                            text = "Fizz 1.1 operates 100% decentralized with zero server custody. All peer transactions and communications are private and autonomous.",
-                            fontSize = 10.5.sp,
-                            color = theme.textSecondary,
-                            lineHeight = 14.sp
                         )
 
                         Row(
@@ -600,37 +549,32 @@ fun PrivacySecurityScreen(
                             OutlinedButton(
                                 onClick = { viewModel.reopenLiabilityWaiver() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                Icon(Icons.Default.Gavel, contentDescription = null, modifier = Modifier.size(13.dp), tint = theme.accentPrimary)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Liability Splash", fontSize = 10.sp, color = theme.accentPrimary)
+                                Text("Terms", fontSize = 11.sp, color = theme.accentPrimary)
                             }
 
                             OutlinedButton(
                                 onClick = { viewModel.reopenOnboardingGuide() },
                                 modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp)
+                                shape = RoundedCornerShape(8.dp)
                             ) {
-                                Icon(Icons.Default.HelpOutline, contentDescription = null, modifier = Modifier.size(13.dp), tint = theme.accentPrimary)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text("Start-Up Guide", fontSize = 10.sp, color = theme.accentPrimary)
+                                Text("Guide", fontSize = 11.sp, color = theme.accentPrimary)
                             }
                         }
 
-                        // Emergency Panic Wipe
                         Button(
                             onClick = { showPanicDialog = true },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
+                            shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = theme.alertRed,
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(15.dp))
+                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(14.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Emergency Panic Wipe (Zero Vault)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                            Text("Erase All Data", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -638,7 +582,6 @@ fun PrivacySecurityScreen(
         }
     }
 
-    // P2P QR Code Pairing Dialog
     if (showPeerQrDialog) {
         PeerQrConnectionDialog(
             myPeerId = viewModel.cryptoManager.myPeerId,
@@ -656,20 +599,18 @@ fun PrivacySecurityScreen(
         )
     }
 
-    // 0-Fault Legal Terms Covenant Dialog
     if (showLegalDisclaimer) {
         LegalDisclaimerDialog(onDismiss = { viewModel.dismissLegalDisclaimer() })
     }
 
-    // Emergency Panic Wipe Confirmation
     if (showPanicDialog) {
         AlertDialog(
             onDismissRequest = { showPanicDialog = false },
-            title = { Text("Emergency Cryptographic Wipe?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = theme.alertRed) },
+            title = { Text("Erase All Local Data?", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = theme.alertRed) },
             text = {
                 Text(
-                    "This will immediately destroy all local SQLite databases, zero all encryption keys in the Keystore, and wipe all listings and chat history permanently. This action is irreversible.",
-                    fontSize = 12.sp,
+                    "This permanently deletes all chats, listings, and encryption keys from this phone.",
+                    fontSize = 13.sp,
                     color = theme.textSecondary
                 )
             },
@@ -681,7 +622,7 @@ fun PrivacySecurityScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = theme.alertRed)
                 ) {
-                    Text("Destroy Vault Now", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text("Delete Everything", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             },
             dismissButton = {
@@ -690,7 +631,7 @@ fun PrivacySecurityScreen(
                 }
             },
             containerColor = theme.surfaceElevated,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(14.dp)
         )
     }
 }

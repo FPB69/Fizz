@@ -21,13 +21,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AutoDelete
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Radar
-import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Storage
-import androidx.compose.material.icons.filled.WifiTethering
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.QrCode
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,7 +45,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -58,11 +54,9 @@ import com.example.ui.theme.LocalMedicalTheme
 data class GuideStep(
     val stepNumber: Int,
     val title: String,
-    val subtitle: String,
     val description: String,
     val icon: ImageVector,
-    val features: List<Pair<String, String>>,
-    val protocolTag: String
+    val bullets: List<String>
 )
 
 @Composable
@@ -76,56 +70,36 @@ fun OnboardingGuideScreen(
     val steps = listOf(
         GuideStep(
             stepNumber = 1,
-            title = "Tor v3 Onion & Bridge Routing",
-            subtitle = "Sovereign Multi-Hop Encrypted Circuitry",
-            description = "All network traffic is strictly isolated within the Tor SOCKS5 proxy daemon. Your IP and physical location are decoupled through a 3 to 5 hop onion circuit with zero DNS leaks.",
-            icon = Icons.Default.WifiTethering,
-            features = listOf(
-                "Pluggable Bridges" to "obfs4 noise scrambling & Snowflake WebRTC bypass DPI firewalls.",
-                "Jurisdiction Filter" to "Optionally restrict routing strictly to Non-14-Eyes privacy nations.",
-                "Tor Hidden Service" to "Direct .onion peer addressing with zero central DNS dependency."
-            ),
-            protocolTag = "TOR v3 • SOCKS5"
+            title = "Pair with QR Code",
+            description = "Connect directly with peers by showing or scanning a QR code.",
+            icon = Icons.Default.QrCode,
+            bullets = listOf(
+                "Direct connection over Tor",
+                "No phone number or email needed",
+                "Your Onion address is your identity"
+            )
         ),
         GuideStep(
             stepNumber = 2,
-            title = "4-Layer Cryptographic Cascade",
-            subtitle = "Multi-Layer Sequential Cipher Armor",
-            description = "Every payload is sequentially wrapped in multiple layers of military-grade encryption before touching the network wire.",
-            icon = Icons.Default.Key,
-            features = listOf(
-                "Layer 1: AES-256-GCM" to "Galois/Counter Mode for authenticated payload privacy.",
-                "Layer 2: ChaCha20-Poly1305" to "High-speed stream cipher defense against cryptographic breaks.",
-                "Layer 3: Hybrid RSA & Signatures" to "Asymmetric handshake with tamper-evident HMAC.",
-                "Layer 4: Zero-Knowledge Traffic Padding" to "Pads payloads to 1024-byte uniform chunks to defeat timing correlation attacks."
-            ),
-            protocolTag = "CASCADE 4-CIPHER"
+            title = "Private Chat & Trade",
+            description = "Send encrypted messages and browse peer listings directly.",
+            icon = Icons.Default.ShoppingBag,
+            bullets = listOf(
+                "End-to-end encrypted",
+                "Optional auto-destruct timers",
+                "Direct P2P listings"
+            )
         ),
         GuideStep(
             stepNumber = 3,
-            title = "0-Cloud Storage & Auto-Destruct",
-            subtitle = "Local-Only SQLite with Cryptographic Wipe",
-            description = "Fizz.1 has NO servers and NO cloud databases. All listings and chat logs are stored strictly inside your phone's encrypted SQLite sandbox.",
-            icon = Icons.Default.AutoDelete,
-            features = listOf(
-                "Auto-Destruct Timers" to "Set messages to vaporize from local storage after 10s, 1m, 1h, or 24h.",
-                "Zero Cloud Footprint" to "No telemetry, no logs, and no analytics uploaded anywhere.",
-                "Panic Data Purge" to "One-tap emergency wipe destroys all SQLite tables and zeros Keystore keys."
-            ),
-            protocolTag = "LOCAL SQLITE • AUTO-PURGE"
-        ),
-        GuideStep(
-            stepNumber = 4,
-            title = "Surveillance & Interception Defense",
-            subtitle = "Real-Time Hop Latency & Threat Scanner",
-            description = "Inspect live hop-by-hop latency and monitor for eavesdropping, DNS leaks, MITM attacks, or timing correlation surveillance in real-time.",
-            icon = Icons.Default.Radar,
-            features = listOf(
-                "Real-Time Hop Ping" to "Live latency monitoring for Entry Guard, Middle Relays, and Exit.",
-                "Interception Detector" to "Automated algorithmic scan alerts you if network anomaly occurs.",
-                "Instant Circuit Renewal" to "One-tap Tor circuit rotation neutralizes any trace instantly."
-            ),
-            protocolTag = "THREAT SCANNER • 0-MITM"
+            title = "Local & Secure",
+            description = "All keys and data stay on your phone.",
+            icon = Icons.Default.Lock,
+            bullets = listOf(
+                "No central servers",
+                "No activity tracking",
+                "One-tap panic wipe"
+            )
         )
     )
 
@@ -144,25 +118,23 @@ fun OnboardingGuideScreen(
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Header with Skip option
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "FIZZ.1 ARCHITECTURAL GUIDE",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 0.8.sp,
+                    text = "Quick Guide",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
                     color = theme.textSecondary
                 )
                 TextButton(onClick = onFinishGuide) {
-                    Text("Skip Guide", fontSize = 12.sp, color = theme.textMuted)
+                    Text("Skip", fontSize = 13.sp, color = theme.textMuted)
                 }
             }
 
-            // Step Progress Dots
+            // Step dots
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -172,7 +144,7 @@ fun OnboardingGuideScreen(
                     Box(
                         modifier = Modifier
                             .height(4.dp)
-                            .width(if (idx == currentStepIdx) 28.dp else 12.dp)
+                            .width(if (idx == currentStepIdx) 24.dp else 10.dp)
                             .clip(CircleShape)
                             .background(if (idx == currentStepIdx) theme.accentPrimary else theme.border)
                     )
@@ -181,7 +153,6 @@ fun OnboardingGuideScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Animated Step Body
             AnimatedContent(
                 targetState = currentStep,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -192,10 +163,9 @@ fun OnboardingGuideScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Icon
                     Box(
                         modifier = Modifier
-                            .size(60.dp)
+                            .size(56.dp)
                             .clip(CircleShape)
                             .background(theme.accentPrimary.copy(alpha = 0.15f))
                             .border(1.5.dp, theme.borderGold, CircleShape),
@@ -205,49 +175,42 @@ fun OnboardingGuideScreen(
                             imageVector = step.icon,
                             contentDescription = null,
                             tint = theme.accentPrimary,
-                            modifier = Modifier.size(30.dp)
+                            modifier = Modifier.size(28.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "STEP ${step.stepNumber} OF 4",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp,
+                        text = "Step ${step.stepNumber} of ${steps.size}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = theme.accentPrimary
                     )
 
+                    Spacer(modifier = Modifier.height(2.dp))
+
                     Text(
                         text = step.title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold,
                         color = theme.textPrimary,
                         textAlign = TextAlign.Center
                     )
 
-                    Text(
-                        text = step.subtitle,
-                        fontSize = 12.sp,
-                        color = theme.accentPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     Text(
                         text = step.description,
-                        fontSize = 11.5.sp,
+                        fontSize = 13.sp,
                         color = theme.textSecondary,
                         textAlign = TextAlign.Center,
-                        lineHeight = 16.sp,
-                        modifier = Modifier.padding(horizontal = 12.dp)
+                        lineHeight = 18.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Key features card
                     Card(
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = theme.surfaceElevated),
@@ -257,36 +220,25 @@ fun OnboardingGuideScreen(
                     ) {
                         Column(
                             modifier = Modifier.padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            step.features.forEach { (featTitle, featDesc) ->
+                            step.bullets.forEach { text ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.Top
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = null,
                                         tint = theme.alertGreen,
-                                        modifier = Modifier
-                                            .size(14.dp)
-                                            .padding(top = 2.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = featTitle,
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = theme.textPrimary
-                                        )
-                                        Text(
-                                            text = featDesc,
-                                            fontSize = 10.5.sp,
-                                            color = theme.textMuted,
-                                            lineHeight = 14.sp
-                                        )
-                                    }
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = text,
+                                        fontSize = 12.5.sp,
+                                        color = theme.textPrimary
+                                    )
                                 }
                             }
                         }
@@ -294,9 +246,8 @@ fun OnboardingGuideScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
-            // Navigation Controls (Back / Next / Finish)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -308,7 +259,7 @@ fun OnboardingGuideScreen(
                         border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(theme.border)),
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Previous", fontSize = 12.sp, color = theme.textSecondary)
+                        Text("Back", fontSize = 13.sp, color = theme.textSecondary)
                     }
                 }
 
@@ -324,8 +275,8 @@ fun OnboardingGuideScreen(
                         .testTag("guide_next_button")
                 ) {
                     Text(
-                        text = if (isLast) "Launch Sovereign Vault (Fizz.1)" else "Next Architectural Layer",
-                        fontSize = 12.sp,
+                        text = if (isLast) "Get Started" else "Next",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.width(6.dp))

@@ -65,6 +65,10 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    // OpenDyslexic font mode
+    private val _isOpenDyslexic = MutableStateFlow(prefs.getBoolean("is_open_dyslexic_font_v1", false))
+    val isOpenDyslexic: StateFlow<Boolean> = _isOpenDyslexic.asStateFlow()
+
     // Mandatory Liability Waiver State
     private val _hasAcceptedWaiver = MutableStateFlow(prefs.getBoolean("has_accepted_liability_waiver_v1", false))
     val hasAcceptedWaiver: StateFlow<Boolean> = _hasAcceptedWaiver.asStateFlow()
@@ -85,14 +89,25 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
         _isDarkTheme.value = dark
     }
 
+    fun toggleOpenDyslexic() {
+        val next = !_isOpenDyslexic.value
+        prefs.edit().putBoolean("is_open_dyslexic_font_v1", next).apply()
+        _isOpenDyslexic.value = next
+    }
+
+    fun setOpenDyslexic(enabled: Boolean) {
+        prefs.edit().putBoolean("is_open_dyslexic_font_v1", enabled).apply()
+        _isOpenDyslexic.value = enabled
+    }
+
     fun acceptLiabilityWaiver() {
         prefs.edit().putBoolean("has_accepted_liability_waiver_v1", true).apply()
         _hasAcceptedWaiver.value = true
         transparencyManager.logEvent(
-            action = "Liability Covenant Accepted",
-            description = "User acknowledged 0-fault, sovereign user-responsible protocol terms.",
+            action = "Terms Accepted",
+            description = "Terms acknowledged.",
             category = TransparencyCategory.CRYPTOGRAPHY,
-            technicalDetails = "Zero-Knowledge Sovereign User Contract • Zero Server Liability"
+            technicalDetails = "Local Agreement"
         )
     }
 

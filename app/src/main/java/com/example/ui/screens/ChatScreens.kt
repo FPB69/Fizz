@@ -131,13 +131,13 @@ fun ChatListScreen(
             ) {
                 Column {
                     Text(
-                        text = "Encrypted Chats",
+                        text = "Chats",
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = theme.textPrimary
                     )
                     Text(
-                        text = "End-to-End Encrypted via Tor Onion",
+                        text = "Encrypted direct messages",
                         fontSize = 11.5.sp,
                         color = theme.textSecondary
                     )

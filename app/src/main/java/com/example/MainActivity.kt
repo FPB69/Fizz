@@ -67,8 +67,15 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     setContent {
-      MyApplicationTheme {
-        FizzApp()
+      val viewModel: TorPeerViewModel = viewModel()
+      val isDarkTheme by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+      val isOpenDyslexic by viewModel.isOpenDyslexic.collectAsStateWithLifecycle()
+
+      MyApplicationTheme(
+        darkTheme = isDarkTheme,
+        openDyslexic = isOpenDyslexic
+      ) {
+        FizzApp(viewModel)
       }
     }
   }

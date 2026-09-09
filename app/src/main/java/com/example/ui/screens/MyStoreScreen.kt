@@ -170,13 +170,13 @@ fun MyStoreScreen(
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
                                     Text(
-                                        text = "Your Local Storefront",
+                                        text = "My Store",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 16.sp,
                                         color = theme.textPrimary
                                     )
                                     Text(
-                                        text = "Hosted 100% on this Phone",
+                                        text = "Saved locally on this device",
                                         fontSize = 11.5.sp,
                                         color = theme.accentSecondary,
                                         fontWeight = FontWeight.Medium
@@ -273,10 +273,9 @@ fun MyStoreScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "All photos, descriptions, and prices are saved directly in this phone's app sandbox storage. Zero cloud servers used.",
-                                fontSize = 11.sp,
-                                color = theme.textSecondary,
-                                lineHeight = 15.sp
+                                text = "Listings are stored locally on your device.",
+                                fontSize = 11.5.sp,
+                                color = theme.textSecondary
                             )
                         }
                     }

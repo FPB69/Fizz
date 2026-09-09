@@ -122,24 +122,24 @@ fun MarketplaceScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "FIZZ 1.1",
+                                text = "Fizz",
                                 fontSize = 22.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp,
                                 color = theme.accentPrimary
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "MARKET",
+                                text = "Market",
                                 fontSize = 22.sp,
-                                fontWeight = FontWeight.Light,
-                                letterSpacing = 1.sp,
+                                fontWeight = FontWeight.Normal,
+                                letterSpacing = 0.5.sp,
                                 color = theme.textPrimary
                             )
                         }
                         Text(
-                            text = "P2P Commerce • Tor Multi-Hop • Direct QR Encrypted Links",
-                            fontSize = 10.5.sp,
+                            text = "Direct P2P listings over Tor",
+                            fontSize = 11.sp,
                             color = theme.textSecondary
                         )
                     }

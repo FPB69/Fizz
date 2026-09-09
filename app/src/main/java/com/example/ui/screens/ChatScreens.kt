@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
@@ -305,6 +306,7 @@ fun ChatListScreen(
                         }
                     }
                 } else {
+                    val isNetworkConnected by viewModel.isNetworkConnected.collectAsStateWithLifecycle()
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -314,6 +316,7 @@ fun ChatListScreen(
                             PeerChatItem(
                                 peer = peer,
                                 lastMessage = lastMessage,
+                                isNetworkConnected = isNetworkConnected,
                                 onClick = { viewModel.selectChat(peer.peerId) }
                             )
                         }
@@ -629,10 +632,12 @@ fun TalkRequestItem(
 fun PeerChatItem(
     peer: PeerContactEntity,
     lastMessage: MessageEntity?,
+    isNetworkConnected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val theme = LocalMedicalTheme.current
+    val isP2pActive = isNetworkConnected && peer.isOnline && peer.connectionStatus == "CONNECTED"
 
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -649,27 +654,39 @@ fun PeerChatItem(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Node Avatar / Letter
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (peer.isVerified) theme.alertGreen.copy(alpha = 0.12f)
-                        else theme.accentPrimary.copy(alpha = 0.12f)
+            // Node Avatar / Letter with P2P Status Indicator Overlay
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (peer.isVerified) theme.alertGreen.copy(alpha = 0.12f)
+                            else theme.accentPrimary.copy(alpha = 0.12f)
+                        )
+                        .border(
+                            1.dp,
+                            if (peer.isVerified) theme.alertGreen else theme.accentPrimary.copy(alpha = 0.5f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = peer.alias.take(2).uppercase(),
+                        color = if (peer.isVerified) theme.alertGreen else theme.accentPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
                     )
-                    .border(
-                        1.dp,
-                        if (peer.isVerified) theme.alertGreen else theme.accentPrimary.copy(alpha = 0.5f),
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = peer.alias.take(2).uppercase(),
-                    color = if (peer.isVerified) theme.alertGreen else theme.accentPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                }
+
+                // P2P Status Dot
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clip(CircleShape)
+                        .background(if (isP2pActive) theme.alertGreen else theme.textMuted.copy(alpha = 0.6f))
+                        .border(1.5.dp, theme.surface, CircleShape)
+                        .align(Alignment.BottomEnd)
                 )
             }
 
@@ -701,11 +718,20 @@ fun PeerChatItem(
                         }
                     }
 
-                    if (lastMessage != null) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                if (isP2pActive) theme.alertGreen.copy(alpha = 0.15f)
+                                else theme.border.copy(alpha = 0.3f)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
                         Text(
-                            text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(lastMessage.timestamp)),
-                            fontSize = 10.5.sp,
-                            color = theme.textMuted
+                            text = if (isP2pActive) "P2P Active" else "Tor Idle",
+                            fontSize = 9.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isP2pActive) theme.alertGreen else theme.textMuted
                         )
                     }
                 }
@@ -747,6 +773,9 @@ fun ChatConversationScreen(
     val conversationMessages = allMessages.filter { it.peerId == peerId }.sortedBy { it.timestamp }
     val relatedListingMessage = conversationMessages.lastOrNull { it.relatedListingId != null }
 
+    val isNetworkConnected by viewModel.isNetworkConnected.collectAsStateWithLifecycle()
+    val isP2pActive = isNetworkConnected && peer.isOnline && peer.connectionStatus == "CONNECTED"
+
     var inputText by remember(peerId) { mutableStateOf(peer.draftMessage) }
     var showCipherModal by remember { mutableStateOf<MessageEntity?>(null) }
     var showFingerprintModal by remember { mutableStateOf(false) }
@@ -782,12 +811,21 @@ fun ChatConversationScreen(
                                 )
                             }
                         }
-                        Text(
-                            text = peer.onionAddress,
-                            fontSize = 10.5.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = theme.accentPrimary
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isP2pActive) theme.alertGreen else theme.textMuted)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (isP2pActive) "P2P Connected Online" else "Offline / Tor Cipher Idle",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isP2pActive) theme.alertGreen else theme.textMuted
+                            )
+                        }
                     }
                 },
                 navigationIcon = {
@@ -800,6 +838,17 @@ fun ChatConversationScreen(
                     }
                 },
                 actions = {
+                    IconButton(
+                        onClick = { viewModel.probePeerP2pConnection(peer.peerId) },
+                        modifier = Modifier.testTag("btn_probe_p2p")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Sensors,
+                            contentDescription = "Probe P2P Connection",
+                            tint = if (isP2pActive) theme.alertGreen else theme.accentPrimary
+                        )
+                    }
+
                     var showTimerMenu by remember { mutableStateOf(false) }
                     val autoDestruct by viewModel.selectedAutoDestructSeconds.collectAsStateWithLifecycle()
 

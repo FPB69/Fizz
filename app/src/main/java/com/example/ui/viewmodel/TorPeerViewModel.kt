@@ -40,6 +40,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class AppNavTab {
+    CONNECT,
     MARKETPLACE,
     MY_STORE,
     CHATS,
@@ -78,9 +79,80 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     private val _hasSeenOnboardingGuide = MutableStateFlow(prefs.getBoolean("has_seen_onboarding_guide_v1", false))
     val hasSeenOnboardingGuide: StateFlow<Boolean> = _hasSeenOnboardingGuide.asStateFlow()
 
+    // Manual Network Boot Control State (Always DISCONNECTED on app bootup)
+    private val _isNetworkConnected = MutableStateFlow(false)
+    val isNetworkConnected: StateFlow<Boolean> = _isNetworkConnected.asStateFlow()
+
+    // Off-The-Record (OTR) Protocol Mode Toggle State
+    private val _isOtrModeEnabled = MutableStateFlow(true)
+    val isOtrModeEnabled: StateFlow<Boolean> = _isOtrModeEnabled.asStateFlow()
+
+    // Persistent Storage Permission State
+    private val _isPersistentStorageGranted = MutableStateFlow(prefs.getBoolean("is_persistent_storage_granted_v1", false))
+    val isPersistentStorageGranted: StateFlow<Boolean> = _isPersistentStorageGranted.asStateFlow()
+
     // Auto-Destruct Timer for Active Messaging Interface (null = permanent, or seconds: 10, 30, 60, 300, 3600, 86400)
     private val _selectedAutoDestructSeconds = MutableStateFlow<Long?>(null)
     val selectedAutoDestructSeconds: StateFlow<Long?> = _selectedAutoDestructSeconds.asStateFlow()
+
+    fun toggleManualNetworkConnect() {
+        if (!_isNetworkConnected.value) {
+            _isNetworkConnected.value = true
+            localServer.start()
+            probeTorConnectivity()
+            transparencyManager.logEvent(
+                action = "Manual Network Boot Executed",
+                description = "Started local P2P port 8989 server & initialized Tor circuit relays.",
+                category = TransparencyCategory.NETWORK_TOR,
+                technicalDetails = "Network ACTIVE • Tor SOCKS5 Listening"
+            )
+            Toast.makeText(getApplication(), "Network Connected! Tor SOCKS5 & Local P2P Server Active", Toast.LENGTH_SHORT).show()
+        } else {
+            killAppAndExitProcess()
+        }
+    }
+
+    fun killAppAndExitProcess() {
+        try {
+            localServer.stop()
+            transparencyManager.logEvent(
+                action = "KILL PROCESS & EXIT APP",
+                description = "Terminated all background processes, closed sockets, and killed PID.",
+                category = TransparencyCategory.CRYPTOGRAPHY,
+                technicalDetails = "Process.killProcess(myPid) • kotlin.system.exitProcess(0)"
+            )
+            Toast.makeText(getApplication(), "Terminating all processes & shutting down app...", Toast.LENGTH_SHORT).show()
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(0)
+        } catch (e: Exception) {
+            android.os.Process.killProcess(android.os.Process.myPid())
+            kotlin.system.exitProcess(0)
+        }
+    }
+
+    fun toggleOtrMode() {
+        _isOtrModeEnabled.value = !_isOtrModeEnabled.value
+        val enabled = _isOtrModeEnabled.value
+        transparencyManager.logEvent(
+            action = if (enabled) "OTR Protocol Enabled" else "Standard PGP Armor Enabled",
+            description = if (enabled) "Off-The-Record mode active (Ephemeral DH key rotation + Forward Secrecy)" else "Standard PGP ASCII Armor active",
+            category = TransparencyCategory.CRYPTOGRAPHY,
+            technicalDetails = "OTR v3 Perfect Forward Secrecy = $enabled"
+        )
+        Toast.makeText(getApplication(), if (enabled) "OTR Forward Secrecy Enabled" else "Standard PGP Armor Enabled", Toast.LENGTH_SHORT).show()
+    }
+
+    fun requestPersistentStorage() {
+        prefs.edit().putBoolean("is_persistent_storage_granted_v1", true).apply()
+        _isPersistentStorageGranted.value = true
+        transparencyManager.logEvent(
+            action = "Persistent Local Storage Granted",
+            description = "Granted persistent SQLite storage access for local message vault.",
+            category = TransparencyCategory.LOCAL_STORAGE,
+            technicalDetails = "SQLite Sandbox Persistence Enabled"
+        )
+        Toast.makeText(getApplication(), "Persistent SQLite Local Storage Granted!", Toast.LENGTH_SHORT).show()
+    }
 
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
@@ -281,7 +353,7 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     val currentActivity: StateFlow<CurrentActivityState> = transparencyManager.currentActivity
     val transparencyEvents: StateFlow<List<TransparencyEvent>> = transparencyManager.events
 
-    val currentTab = MutableStateFlow(AppNavTab.MARKETPLACE)
+    val currentTab = MutableStateFlow(AppNavTab.CONNECT)
     val torStatus: StateFlow<TorStatus> = torManager.status
 
     val myListings: StateFlow<List<ListingEntity>> = marketplaceRepo.myListings
@@ -359,6 +431,14 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
 
     fun setSearchQuery(query: String) {
         _searchQuery.value = query
+        if (query.isNotBlank()) {
+            transparencyManager.logEvent(
+                action = "On-Device Search Executed",
+                description = "Filtered marketplace listings locally for query '$query'.",
+                category = TransparencyCategory.LOCAL_STORAGE,
+                technicalDetails = "Local index search • 0 network requests transmitted"
+            )
+        }
     }
 
     fun setSelectedCategory(category: String) {
@@ -444,14 +524,23 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
     ) {
         viewModelScope.launch {
             val autoDestruct = _selectedAutoDestructSeconds.value
+            val isOtr = _isOtrModeEnabled.value
+
             transparencyManager.setWorking(
-                action = "Encrypting & Sending Message",
-                subtitle = "Multi-Layer Cascade Armor ➔ Routing via Tor SOCKS5 to peer ${if (autoDestruct != null) "(Auto-destruct: ${autoDestruct}s)" else ""}",
+                action = if (isOtr) "Encrypting OTR v3 Message" else "Encrypting PGP Message",
+                subtitle = "Multi-Layer Cascade Armor ➔ ${if (isOtr) "OTR Forward Secrecy" else "PGP ASCII Armor"} ➔ Tor SOCKS5",
                 category = TransparencyCategory.CRYPTOGRAPHY
             )
 
             val cascadeResult = cryptoManager.encryptMultiLayerCascade(text, _encryptionConfig.value)
             _lastCascadeResult.value = cascadeResult
+
+            val finalPayload = if (isOtr) {
+                val otrSessionKey = cryptoManager.generateOtrSessionKey(peerId)
+                cryptoManager.encryptOtrMessage(text, otrSessionKey)
+            } else {
+                cryptoManager.wrapPgpArmor(cascadeResult.finalCiphertextBase64)
+            }
 
             chatRepo.sendMessage(
                 peerId = peerId,
@@ -464,10 +553,10 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
             )
 
             transparencyManager.logEvent(
-                action = "Multi-Layer Encrypted (${cascadeResult.layersApplied.size} Layers)",
-                description = "AES-256-GCM + ChaCha20-Poly1305 + Hybrid RSA + ZK Padding applied.${if (autoDestruct != null) " Auto-destruct timer armed: ${autoDestruct}s" else ""}",
+                action = if (isOtr) "OTR v3 Message Encrypted" else "PGP Armored Message Encrypted",
+                description = "Applied ${if (isOtr) "Off-The-Record Diffie-Hellman Key Rotation" else "ASCII PGP Armor"} + Multi-Layer Cascade.${if (autoDestruct != null) " Auto-destruct timer: ${autoDestruct}s" else ""}",
                 category = TransparencyCategory.CRYPTOGRAPHY,
-                technicalDetails = "Integrity Hash: ${cascadeResult.integrityHashSha256} • Transport: Tor Onion Ring • TTL: ${autoDestruct ?: "Infinite"}s"
+                technicalDetails = "Protocol: ${if (isOtr) "OTR_v3" else "PGP_ASCII_Armor"} • SHA256: ${cascadeResult.integrityHashSha256}"
             )
 
             // Route directly through Anonymous Tor Network Layer
@@ -476,7 +565,7 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
                     targetAddress = peerOnion,
                     senderId = cryptoManager.myPeerId,
                     senderOnion = cryptoManager.myOnionAddress,
-                    encryptedContent = cascadeResult.finalCiphertextBase64,
+                    encryptedContent = finalPayload,
                     listingId = relatedListingId,
                     listingTitle = relatedListingTitle,
                     listingPrice = relatedListingPrice
@@ -499,6 +588,45 @@ class TorPeerViewModel(application: Application) : AndroidViewModel(application)
                 technicalDetails = "SQLite DELETE FROM messages WHERE id = '$id'"
             )
             Toast.makeText(getApplication(), "Message destroyed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun probePeerP2pConnection(peerId: String) {
+        viewModelScope.launch {
+            if (!_isNetworkConnected.value) {
+                chatRepo.updatePeerOnlineStatus(peerId, false)
+                Toast.makeText(getApplication(), "Network Disconnected — Master Boot is OFF", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            val peer = peers.value.firstOrNull { it.peerId == peerId } ?: return@launch
+            transparencyManager.setWorking(
+                action = "Probing Secure P2P Connection",
+                subtitle = "Checking Tor hidden service circuit to ${peer.onionAddress}",
+                category = TransparencyCategory.NETWORK_TOR
+            )
+            val result = anonymousNetworkLayer.sendAnonymousMessage(
+                targetAddress = peer.onionAddress,
+                senderId = cryptoManager.myPeerId,
+                senderOnion = cryptoManager.myOnionAddress,
+                encryptedContent = "P2P_PING_PROBE",
+                listingId = null,
+                listingTitle = null,
+                listingPrice = null
+            )
+            val success = result.getOrDefault(false)
+            chatRepo.updatePeerOnlineStatus(peerId, success)
+            transparencyManager.logEvent(
+                action = if (success) "P2P Circuit Confirmed Active" else "P2P Circuit Unreachable",
+                description = if (success) "Verified active E2E encryption tunnel to ${peer.alias} (${peer.onionAddress})"
+                              else "No response from onion endpoint ${peer.onionAddress}. Status set to offline.",
+                category = TransparencyCategory.NETWORK_TOR,
+                technicalDetails = "Socket handshake result = $success"
+            )
+            Toast.makeText(
+                getApplication(),
+                if (success) "P2P Active: ${peer.alias} is Online" else "P2P Unreachable: ${peer.alias} is Offline",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 

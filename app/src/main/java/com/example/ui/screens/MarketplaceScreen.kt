@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -84,6 +86,11 @@ fun MarketplaceScreen(
     var contactTargetListing by remember { mutableStateOf<ListingEntity?>(null) }
     var talkRequestMessage by remember { mutableStateOf("") }
 
+    // Popular suggested privacy keyword tags
+    val suggestedKeywords = remember {
+        listOf("Hardware", "Encrypted", "LoRa", "Vault", "Faraday", "XMR", "Air-Gapped", "Sats", "Security")
+    }
+
     // Dynamic category list combining defaults + all custom categories from listings
     val categories = remember(allListings) {
         val standardDefaults = listOf("Hardware", "Software", "Security", "Physical Goods", "Services")
@@ -91,13 +98,19 @@ fun MarketplaceScreen(
         (listOf("All") + standardDefaults + customFromListings).distinct()
     }
 
-    val filteredListings = allListings.filter { listing ->
-        val matchesCategory = selectedCategory == "All" || listing.category.equals(selectedCategory, ignoreCase = true)
-        val matchesSearch = searchQuery.isEmpty() ||
-                listing.title.contains(searchQuery, ignoreCase = true) ||
-                listing.description.contains(searchQuery, ignoreCase = true) ||
-                listing.category.contains(searchQuery, ignoreCase = true)
-        matchesCategory && matchesSearch
+    // Local-only tokenized search engine
+    val filteredListings = remember(allListings, selectedCategory, searchQuery) {
+        val tokens = searchQuery.trim().lowercase().split("\\s+".toRegex()).filter { it.isNotBlank() }
+        allListings.filter { listing ->
+            val matchesCategory = selectedCategory == "All" || listing.category.equals(selectedCategory, ignoreCase = true)
+            if (tokens.isEmpty()) {
+                matchesCategory
+            } else {
+                val searchableText = "${listing.title} ${listing.description} ${listing.category} ${listing.price} ${listing.currency} ${listing.deliveryMethod} ${listing.sellerOnion}".lowercase()
+                val matchesKeywords = tokens.all { token -> searchableText.contains(token) }
+                matchesCategory && matchesKeywords
+            }
+        }
     }
 
     Scaffold(
@@ -139,7 +152,7 @@ fun MarketplaceScreen(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Fizz 1.2",
+                                text = "Fizz 1.4",
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.5.sp,
@@ -202,7 +215,7 @@ fun MarketplaceScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { viewModel.setSearchQuery(it) },
-                        placeholder = { Text("Search listings, custom categories...", fontSize = 12.sp, color = theme.textMuted) },
+                        placeholder = { Text("Search listings, keywords, onion ID...", fontSize = 12.sp, color = theme.textMuted) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Search,
@@ -258,6 +271,76 @@ fun MarketplaceScreen(
                 }
             }
 
+            // On-Device Search Privacy Banner & Results Summary
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(theme.surfaceElevated)
+                        .border(1.dp, if (searchQuery.isNotBlank()) theme.accentPrimary.copy(alpha = 0.5f) else theme.border, RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(theme.accentPrimary.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Shield,
+                                    contentDescription = "On-Device Search Privacy",
+                                    tint = theme.accentPrimary,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = if (searchQuery.isBlank()) "100% On-Device Local Search Index" else "Found ${filteredListings.size} listing(s) matching '$searchQuery'",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = theme.textPrimary,
+                                    modifier = Modifier.testTag("privacy_search_badge")
+                                )
+                                Text(
+                                    text = "Zero network transmission • Search queries remain isolated in phone memory",
+                                    fontSize = 9.5.sp,
+                                    color = theme.textMuted
+                                )
+                            }
+                        }
+
+                        if (searchQuery.isNotBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(theme.accentPrimary.copy(alpha = 0.12f))
+                                    .clickable { viewModel.setSearchQuery("") }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .testTag("clear_search_button")
+                            ) {
+                                Text(
+                                    text = "Reset Search",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = theme.accentPrimary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // Category Filter Chips (Standard + Custom Categories)
             item {
                 Row(
@@ -285,6 +368,62 @@ fun MarketplaceScreen(
                             ),
                             shape = RoundedCornerShape(20.dp)
                         )
+                    }
+                }
+            }
+
+            // Quick Keyword Tags Filter Bar
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.padding(end = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Tag,
+                            contentDescription = null,
+                            tint = theme.accentPrimary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "Tags:",
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = theme.textMuted
+                        )
+                    }
+
+                    suggestedKeywords.forEach { tag ->
+                        val isActive = searchQuery.contains(tag, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(if (isActive) theme.accentPrimary else theme.surfaceElevated.copy(alpha = 0.6f))
+                                .border(0.5.dp, if (isActive) theme.accentPrimary else theme.border, RoundedCornerShape(14.dp))
+                                .clickable {
+                                    if (isActive) {
+                                        viewModel.setSearchQuery("")
+                                    } else {
+                                        viewModel.setSearchQuery(tag)
+                                    }
+                                }
+                                .padding(horizontal = 9.dp, vertical = 3.5.dp)
+                                .testTag("keyword_chip_$tag")
+                        ) {
+                            Text(
+                                text = tag,
+                                fontSize = 10.sp,
+                                color = if (isActive) theme.background else theme.textSecondary,
+                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }

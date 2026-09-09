@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Storefront
@@ -52,6 +53,7 @@ import com.example.ui.components.LiveTransparencyBar
 import com.example.ui.components.TransparencyInspectorDialog
 import com.example.ui.screens.ChatConversationScreen
 import com.example.ui.screens.ChatListScreen
+import com.example.ui.screens.ConnectScreen
 import com.example.ui.screens.LiabilityWaiverScreen
 import com.example.ui.screens.MarketplaceScreen
 import com.example.ui.screens.MyStoreScreen
@@ -126,6 +128,33 @@ fun FizzApp(viewModel: TorPeerViewModel = viewModel()) {
                   .windowInsetsPadding(WindowInsets.navigationBars)
                   .testTag("main_navigation_bar")
               ) {
+                NavigationBarItem(
+                  selected = currentTab == AppNavTab.CONNECT,
+                  onClick = { viewModel.setNavTab(AppNavTab.CONNECT) },
+                  icon = {
+                    Icon(
+                      imageVector = Icons.Default.PowerSettingsNew,
+                      contentDescription = "Connect / Control Center",
+                      modifier = Modifier.size(22.dp)
+                    )
+                  },
+                  label = {
+                    Text(
+                      "Connect",
+                      fontSize = 11.sp,
+                      fontWeight = if (currentTab == AppNavTab.CONNECT) FontWeight.Bold else FontWeight.Normal
+                    )
+                  },
+                  colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = theme.background,
+                    selectedTextColor = theme.accentPrimary,
+                    unselectedIconColor = theme.textMuted,
+                    unselectedTextColor = theme.textMuted,
+                    indicatorColor = theme.accentPrimary
+                  ),
+                  modifier = Modifier.testTag("nav_item_connect")
+                )
+
                 NavigationBarItem(
                   selected = currentTab == AppNavTab.MARKETPLACE,
                   onClick = { viewModel.setNavTab(AppNavTab.MARKETPLACE) },
@@ -264,6 +293,9 @@ fun FizzApp(viewModel: TorPeerViewModel = viewModel()) {
                       viewModel = viewModel,
                       onBack = { viewModel.clearChatSelection() }
                     )
+                  }
+                  tab == AppNavTab.CONNECT -> {
+                    ConnectScreen(viewModel = viewModel)
                   }
                   tab == AppNavTab.MARKETPLACE -> {
                     MarketplaceScreen(viewModel = viewModel)

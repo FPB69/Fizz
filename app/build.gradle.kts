@@ -15,10 +15,10 @@ android {
 
   defaultConfig {
     applicationId = "com.aistudio.torpeer.vxkpm"
-    minSdk = 24
+    minSdk = 29
     targetSdk = 36
-    versionCode = 3
-    versionName = "1.3"
+    versionCode = 7
+    versionName = "1.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

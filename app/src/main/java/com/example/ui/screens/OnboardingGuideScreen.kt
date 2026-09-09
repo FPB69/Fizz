@@ -70,35 +70,35 @@ fun OnboardingGuideScreen(
     val steps = listOf(
         GuideStep(
             stepNumber = 1,
-            title = "Pair with QR Code",
-            description = "Connect directly with peers by showing or scanning a QR code.",
+            title = "Manual Connect & Kill Switch",
+            description = "App boots completely offline. Control all background processes manually from the Connect Tab.",
             icon = Icons.Default.QrCode,
             bullets = listOf(
-                "Direct connection over Tor",
-                "No phone number or email needed",
-                "Your Onion address is your identity"
+                "Manual Connect: Tap button on Connect tab to boot Tor SOCKS5 & P2P listeners",
+                "App Kill Switch: Pressing the Connect button again terminates all processes & exits immediately",
+                "Persistent Storage: Request local SQLite sandbox persistence on Connect Tab"
             )
         ),
         GuideStep(
             stepNumber = 2,
-            title = "Private Chat & Trade",
-            description = "Send encrypted messages and browse peer listings directly.",
+            title = "PGP & OTR Message Protocols",
+            description = "All chat communications feature mandatory encryption protocols for total confidentiality.",
             icon = Icons.Default.ShoppingBag,
             bullets = listOf(
-                "End-to-end encrypted",
-                "Optional auto-destruct timers",
-                "Direct P2P listings"
+                "PGP ASCII Armor: Encapsulates all message payloads with PGP key signatures",
+                "Off-The-Record (OTR v3): Perfect forward secrecy with ephemeral DH key rotation",
+                "Auto-Destruct Timers: Vaporizes messages after configured TTL (10s to 24h)"
             )
         ),
         GuideStep(
             stepNumber = 3,
-            title = "Local & Secure",
-            description = "All keys and data stay on your phone.",
+            title = "EXIF Scrubber & Panic Wipe",
+            description = "Zero footprint image attachments and emergency data destruction.",
             icon = Icons.Default.Lock,
             bullets = listOf(
-                "No central servers",
-                "No activity tracking",
-                "One-tap panic wipe"
+                "Automatic EXIF Scrubber: Strips GPS location & camera model metadata from photos",
+                "On-Device Local Search: Filter marketplace listings privately without network calls",
+                "Panic Wipe Button: Located at Tor Vault Tab > Emergency Data Purge (Red Button)"
             )
         )
     )

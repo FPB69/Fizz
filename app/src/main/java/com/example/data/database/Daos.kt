@@ -84,6 +84,9 @@ interface PeerContactDao {
     @Query("UPDATE peer_contacts SET connectionStatus = :status WHERE peerId = :peerId")
     suspend fun updateConnectionStatus(peerId: String, status: String)
 
+    @Query("UPDATE peer_contacts SET isOnline = :isOnline, lastSeen = :lastSeen WHERE peerId = :peerId")
+    suspend fun updateOnlineStatus(peerId: String, isOnline: Boolean, lastSeen: Long = System.currentTimeMillis())
+
     @Query("UPDATE peer_contacts SET isVerified = :verified WHERE peerId = :peerId")
     suspend fun updateVerification(peerId: String, verified: Boolean)
 

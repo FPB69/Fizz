@@ -129,6 +129,10 @@ class ChatRepository(
         request
     }
 
+    suspend fun updatePeerOnlineStatus(peerId: String, isOnline: Boolean) = withContext(Dispatchers.IO) {
+        peerDao.updateOnlineStatus(peerId, isOnline, System.currentTimeMillis())
+    }
+
     suspend fun acceptTalkRequest(requestId: String) = withContext(Dispatchers.IO) {
         val request = talkRequestDao.getRequestById(requestId) ?: return@withContext
         talkRequestDao.updateStatus(requestId, "ACCEPTED")

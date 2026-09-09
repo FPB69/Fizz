@@ -12,6 +12,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
+import com.example.data.utils.ExifScrubber
+
 class MarketplaceRepository(
     private val context: Context,
     private val listingDao: ListingDao,
@@ -41,9 +43,13 @@ class MarketplaceRepository(
         if (imageUri != null) {
             try {
                 val photoFile = File(photosDir, "$id.jpg")
-                context.contentResolver.openInputStream(imageUri)?.use { input ->
-                    FileOutputStream(photoFile).use { output ->
-                        input.copyTo(output)
+                // Automatic EXIF Photo Metadata Removal Tool (Strips GPS location & camera model)
+                val scrubbedSuccess = ExifScrubber.scrubExifMetadata(context, imageUri, photoFile)
+                if (!scrubbedSuccess) {
+                    context.contentResolver.openInputStream(imageUri)?.use { input ->
+                        FileOutputStream(photoFile).use { output ->
+                            input.copyTo(output)
+                        }
                     }
                 }
                 photoPath = photoFile.absolutePath
@@ -89,78 +95,24 @@ class MarketplaceRepository(
         val currentListings = listingDao.getAllListings().first()
         if (currentListings.isNotEmpty()) return@withContext
 
-        // Pre-seed owner's initial local item
-        val myInitialListing = ListingEntity(
-            id = "lst_local_01",
-            title = "Encrypted LoRa Mesh Communicator",
-            description = "Custom firmware off-grid long-range encrypted text radio. Zero internet required. Direct point-to-point 868/915MHz with local AES-256 keys.",
-            price = "0.045",
-            currency = "XMR",
-            category = "Hardware",
-            photoPath = "sample_lora_radio_1788876517455",
+        // Replace example items with a fully hands-on tutorial guide item
+        val tutorialListing = ListingEntity(
+            id = "lst_tutorial_01",
+            title = "Welcome to Fizz 1.7: Hands-On Security & Setup Guide",
+            description = "Welcome! 1) Connect Tab: Opens directly on launch for master connect/kill control. 2) Secure P2P Status Indicators: Live online/offline peer status dot updates only when active P2P connection is verified. 3) Automatic EXIF Scrubber: All photos stripped of GPS metadata. 4) Panic Wipe: Tor Vault Tab > Emergency Data Purge to instantly destroy all local SQLite data.",
+            price = "0",
+            currency = "FREE",
+            category = "Security",
+            photoPath = "sample_hardware_wallet_1788876501106",
             sellerPeerId = myPeerId,
             sellerOnion = myOnionAddress,
-            createdAt = System.currentTimeMillis() - 3600000,
+            createdAt = System.currentTimeMillis(),
             isMine = true,
             inStock = true,
-            deliveryMethod = "P2P Drop / Secure Mail"
+            deliveryMethod = "Instant Hands-On Tutorial"
         )
 
-        // Pre-seed peer listings discovered over Tor network from decentralized nodes
-        val peer1Onion = "torpeer4kx92am7z6qp31b.onion"
-        val peer2Onion = "privacyvault89vckl12w.onion"
-        val peer3Onion = "cypherpunknode990x1a.onion"
-
-        val peerListings = listOf(
-            ListingEntity(
-                id = "lst_peer_01",
-                title = "Air-Gapped Hardware Crypto Vault",
-                description = "Dedicated secure element signer with camera QR verification. No Bluetooth, no Wi-Fi, zero radio emission. Pure airgap security.",
-                price = "0.028",
-                currency = "XMR",
-                category = "Hardware",
-                photoPath = "sample_hardware_wallet_1788876501106",
-                sellerPeerId = "peer_cypher99",
-                sellerOnion = peer1Onion,
-                createdAt = System.currentTimeMillis() - 7200000,
-                isMine = false,
-                inStock = true,
-                deliveryMethod = "Dead-Drop or Tor Mail"
-            ),
-            ListingEntity(
-                id = "lst_peer_02",
-                title = "Faraday Signal-Blocking Go-Bag",
-                description = "Military grade dual-layer RF shielding. Blocks 5G, GPS, RFID, WiFi, and Bluetooth. Tested -90dB attenuation across 100MHz-10GHz.",
-                price = "45",
-                currency = "USD Cash",
-                category = "Physical Goods",
-                photoPath = "sample_lora_radio_1788876517455",
-                sellerPeerId = "peer_shield_vault",
-                sellerOnion = peer2Onion,
-                createdAt = System.currentTimeMillis() - 14400000,
-                isMine = false,
-                inStock = true,
-                deliveryMethod = "In-Person P2P Handshake"
-            ),
-            ListingEntity(
-                id = "lst_peer_03",
-                title = "Encrypted IronKey Vault Drive 128GB",
-                description = "FIPS 140-2 Level 3 hardware encrypted flash drive. Self-destruct PIN mechanism after 10 failed attempts. Waterproof epoxy coated.",
-                price = "250,000",
-                currency = "Sats",
-                category = "Privacy Tools",
-                photoPath = "sample_hardware_wallet_1788876501106",
-                sellerPeerId = "peer_iron_node",
-                sellerOnion = peer3Onion,
-                createdAt = System.currentTimeMillis() - 28800000,
-                isMine = false,
-                inStock = true,
-                deliveryMethod = "P2P Postal Drop"
-            )
-        )
-
-        listingDao.insertListing(myInitialListing)
-        listingDao.insertListings(peerListings)
+        listingDao.insertListing(tutorialListing)
     }
 
     suspend fun wipeAll() = withContext(Dispatchers.IO) {

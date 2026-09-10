@@ -1,6 +1,6 @@
 {
   "name": "Fizz 1.7",
-  "description": "Fizz 1.7 - Sovereign P2P encrypted marketplace & Tor messenger with secure P2P online/offline indicators, manual network boot & kill switch, Android 10-16 support, PGP ASCII armor & OTR v3 protocol encryption, automatic photo EXIF metadata scrubber, and persistent storage.",
+  "description": "Fizz 1.7",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
